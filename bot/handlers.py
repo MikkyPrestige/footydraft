@@ -220,13 +220,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _, filter_arg, page_str = data.split("_", 2)
         page = int(page_str)
         with SessionLocal() as session:
-            query = session.query(Draft)
+            db_query = session.query(Draft)
             if filter_arg == "pending":
                 query = query.filter(Draft.status == "pending", Draft.content_type == "normal")
             elif filter_arg in ("held", "posted"):
                 query = query.filter(Draft.status == filter_arg)
-            total = query.count()
-            drafts = query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
+            total = db_query.count()
+            drafts = db_query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
             if not drafts:
                 await query.edit_message_text("No more drafts.")
                 return
@@ -369,15 +369,15 @@ async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     with SessionLocal() as session:
-        query = session.query(Draft)
+        db_query = session.query(Draft)
         if filter_arg != "all":
             if filter_arg == "pending":
                 query = query.filter(Draft.status == "pending", Draft.content_type == "normal")
             else:
                 query = query.filter(Draft.status == filter_arg)
 
-        total = query.count()
-        drafts = query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
+        total = db_query.count()
+        drafts = db_query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
 
         if not drafts:
             await update.message.reply_text(f"No drafts found for filter '{filter_arg}'.")
