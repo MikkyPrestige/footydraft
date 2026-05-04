@@ -222,9 +222,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with SessionLocal() as session:
             db_query = session.query(Draft)
             if filter_arg == "pending":
-                query = query.filter(Draft.status == "pending", Draft.content_type == "normal")
+                db_query = db_query.filter(Draft.status == "pending", Draft.content_type == "normal")
             elif filter_arg in ("held", "posted"):
-                query = query.filter(Draft.status == filter_arg)
+                db_query = db_query.filter(Draft.status == filter_arg)
             total = db_query.count()
             drafts = db_query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
             if not drafts:
@@ -372,9 +372,9 @@ async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_query = session.query(Draft)
         if filter_arg != "all":
             if filter_arg == "pending":
-                query = query.filter(Draft.status == "pending", Draft.content_type == "normal")
+                db_query = db_query.filter(Draft.status == "pending", Draft.content_type == "normal")
             else:
-                query = query.filter(Draft.status == filter_arg)
+                db_query = db_query.filter(Draft.status == filter_arg)
 
         total = db_query.count()
         drafts = db_query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
