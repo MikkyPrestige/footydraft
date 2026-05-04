@@ -213,7 +213,33 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
 
-    if data.startswith("copy_"):
+    if data.startswith("drafts_"):
+        _, filter_arg, page_str = data.split("_", 2)
+        page = int(page_str)
+        with SessionLocal() as session:
+            query = session.query(Draft)
+            if filter_arg == "pending":
+                query = query.filter(Draft.status == "pending", Draft.content_type == "normal")
+            elif filter_arg in ("held", "posted"):
+                query = query.filter(Draft.status == filter_arg)
+            total = query.count()
+            drafts = query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
+            if not drafts:
+                await query.edit_message_text("No more drafts.")
+                return
+            pages = (total - 1) // 10 + 1
+            msg = f"📋 Drafts ({filter_arg}) – page {page+1}/{pages}\n\n"
+            for d in drafts:
+                preview = d.text_variants[0][:60] + "..." if d.text_variants[0] and len(d.text_variants[0]) > 60 else d.text_variants[0]
+                msg += f"#{d.id} [{d.persona}] {preview}\n"
+            keyboard = None
+            if page + 1 < pages:
+                keyboard = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("Older ➡️", callback_data=f"drafts_{filter_arg}_{page+1}")
+                ]])
+            await query.edit_message_text(msg, reply_markup=keyboard)
+
+    elif data.startswith("copy_"):
         _, draft_id, variant_idx = data.split("_")
         draft_id = int(draft_id)
         variant_idx = int(variant_idx)
@@ -294,3 +320,76 @@ async def clearqueue(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ).delete()
         session.commit()
     await update.message.reply_text(f"🗑️ {deleted} pending draft(s) cleared.")
+
+async def hold_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Move a pending draft to held status (quarantine)."""
+    if not context.args:
+        await update.message.reply_text("Usage: /hold <draft_id>")
+        return
+    draft_id = int(context.args[0])
+    with SessionLocal() as session:
+        draft = session.get(Draft, draft_id)
+        if not draft:
+            await update.message.reply_text("Draft not found.")
+            return
+        if draft.status != "pending":
+            await update.message.reply_text(f"Draft #{draft_id} is not pending (status: {draft.status}).")
+            return
+        draft.status = "held"
+        session.commit()
+    await update.message.reply_text(f"📥 Draft #{draft_id} moved to held.")
+async def release_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Move a held draft back to pending."""
+    if not context.args:
+        await update.message.reply_text("Usage: /release <draft_id>")
+        return
+    draft_id = int(context.args[0])
+    with SessionLocal() as session:
+        draft = session.get(Draft, draft_id)
+        if not draft:
+            await update.message.reply_text("Draft not found.")
+            return
+        if draft.status != "held":
+            await update.message.reply_text(f"Draft #{draft_id} is not held (status: {draft.status}).")
+            return
+        draft.status = "pending"
+        session.commit()
+    await update.message.reply_text(f"📤 Draft #{draft_id} released back to queue.")
+
+async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show drafts with optional filter and pagination."""
+    filter_arg = context.args[0].lower() if context.args else "all"
+    page = int(context.args[1]) if len(context.args) > 1 else 0
+
+    if filter_arg not in ("all", "pending", "held", "posted"):
+        await update.message.reply_text("Usage: /drafts [all|pending|held|posted]")
+        return
+
+    with SessionLocal() as session:
+        query = session.query(Draft)
+        if filter_arg != "all":
+            if filter_arg == "pending":
+                query = query.filter(Draft.status == "pending", Draft.content_type == "normal")
+            else:
+                query = query.filter(Draft.status == filter_arg)
+
+        total = query.count()
+        drafts = query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
+
+        if not drafts:
+            await update.message.reply_text(f"No drafts found for filter '{filter_arg}'.")
+            return
+
+        pages = (total - 1) // 10 + 1
+        msg = f"📋 Drafts ({filter_arg}) – page {page+1}/{pages}\n\n"
+        for d in drafts:
+            preview = d.text_variants[0][:60] + "..." if d.text_variants[0] and len(d.text_variants[0]) > 60 else d.text_variants[0]
+            msg += f"#{d.id} [{d.persona}] {preview}\n"
+
+        keyboard = None
+        if page + 1 < pages:
+            keyboard = InlineKeyboardMarkup([[
+                InlineKeyboardButton("Older ➡️", callback_data=f"drafts_{filter_arg}_{page+1}")
+            ]])
+
+        await update.message.reply_text(msg, reply_markup=keyboard)
