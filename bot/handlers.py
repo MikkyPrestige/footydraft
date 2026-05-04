@@ -295,6 +295,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=keyboard
                 )
 
+    elif data.startswith("drafts_"):
+        _, filter_arg, page_str = data.split("_", 2)
+        page = int(page_str)
+        with SessionLocal() as session:
+            db_query = session.query(Draft)
+            if filter_arg == "pending":
+                db_query = db_query.filter(Draft.status == "pending", Draft.content_type == "normal")
+            elif filter_arg in ("held", "posted"):
+                db_query = db_query.filter(Draft.status == filter_arg)
+            total = db_query.count()
+            drafts = db_query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
+            if not drafts:
+                await query.edit_message_text("No more drafts.")
+                return
+            pages = (total - 1) // 10 + 1
+            msg = f"📋 Drafts ({filter_arg}) – page {page+1}/{pages}\n\n"
+            for d in drafts:
+                preview = d.text_variants[0][:60] + "..." if d.text_variants[0] and len(d.text_variants[0]) > 60 else d.text_variants[0]
+                msg += f"#{d.id} [{d.persona}] {preview}\n"
+            keyboard = None
+            if page + 1 < pages:
+                keyboard = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("Older ➡️", callback_data=f"drafts_{filter_arg}_{page+1}")
+                ]])
+            await query.edit_message_text(msg, reply_markup=keyboard)
+
     elif data.startswith("copy_"):
         _, draft_id, variant_idx = data.split("_")
         draft_id = int(draft_id)
