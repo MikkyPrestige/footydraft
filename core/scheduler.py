@@ -28,7 +28,16 @@ RELEVANCE_KEYWORDS = {
     # live match indicators (so status lines pass)
     "status", "vs", "1h", "2h", "ht", "ft", "elapsed",
     "minute", "half-time", "full-time", "kick-off",
-    "substitution", "subbed"
+    "substitution", "subbed",
+    # expanded stats terms
+    "xG", "xA", "progressive", "field tilt", "PPDA", "shot map",
+    "heat map", "big chances", "possession", "pass completion",
+    "tackles", "interceptions", "clearances", "duels", "assists",
+    "saves", "clean sheet", "distance covered",
+    # expanded transfer terms
+    "here we go", "medical", "verbal agreement", "triggered", "activates",
+    # expanded debate/meme terms
+    "overrated", "underrated", "bottle", "cooking", "generational"
 }
 
 def is_relevant(item) -> bool:
@@ -45,6 +54,7 @@ async def fetch_all_and_process():
         ("RSS", RSSFetcher()),
         ("Reddit", RedditFetcher()),
         ("Google News", GoogleNewsFetcher()),
+        ("Google Stats", GoogleNewsFetcher(search_query="football statistics OR xG OR expected goals OR progressive passes OR shot map OR heat map OR big chances OR passing accuracy OR tackles OR interceptions")),
         ("API-Football", APIFootballFetcher()),
         ("ESPN", ESPNFetcher()),
     ]

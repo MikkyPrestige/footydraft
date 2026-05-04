@@ -12,6 +12,10 @@ FEEDS = {
     "The Guardian Football": "https://www.theguardian.com/football/rss",
     "Daily Mail Football": "https://www.dailymail.co.uk/sport/football/articles.rss",
     "Goal.com (via Feedburner)": "https://feeds.feedburner.com/goalnews",
+    "The Guardian Football": "https://www.theguardian.com/football/series/football-daily/rss",
+    "Sky Sports Football": "https://www.skysports.com/football/rss",
+    "The Analyst (Opta)": "https://theanalyst.com/feed/",
+    "FBref (StatsBomb)": "https://fbref.com/feed/",
 }
 
 class RSSFetcher(BaseFetcher):

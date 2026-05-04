@@ -11,10 +11,13 @@ SEARCH_QUERY = "football OR premier league OR champions league OR transfer OR so
 BASE_URL = "https://news.google.com/rss/search?q={}&hl=en-GB&gl=GB&ceid=GB:en"
 
 class GoogleNewsFetcher(BaseFetcher):
+    def __init__(self, search_query: str = None):
+        self.search_query = search_query or SEARCH_QUERY
+
     async def fetch(self) -> List[NewsItem]:
         items = []
         try:
-            url = BASE_URL.format(quote(SEARCH_QUERY))
+            url = BASE_URL.format(quote(self.search_query))
             # feedparser is blocking → run in thread
             feed = await asyncio.to_thread(feedparser.parse, url)
             for entry in feed.entries:
