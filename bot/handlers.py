@@ -335,7 +335,7 @@ async def hold_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not draft:
             await update.message.reply_text("Draft not found.")
             return
-        if draft.status != "pending":
+        if draft.status not in ("pending", "pending_live"):
             await update.message.reply_text(f"Draft #{draft_id} is not pending (status: {draft.status}).")
             return
         draft.status = "held"
