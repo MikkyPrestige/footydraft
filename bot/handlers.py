@@ -252,30 +252,48 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("queue_"):
         _, filter_arg, page_str = data.split("_", 2)
         page = int(page_str)
-        _, filter_arg, page_str = data.split("_", 2)
-        page = int(page_str)
         with SessionLocal() as session:
-            db_query = session.query(Draft)
-            if filter_arg == "pending":
-                db_query = db_query.filter(Draft.status == "pending", Draft.content_type == "normal")
-            elif filter_arg in ("held", "posted"):
-                db_query = db_query.filter(Draft.status == filter_arg)
+            if filter_arg == "normal":
+                db_query = session.query(Draft).filter(
+                    Draft.status == "pending",
+                    Draft.content_type == "normal"
+                )
+            elif filter_arg == "live":
+                db_query = session.query(Draft).filter(
+                    Draft.status == "pending_live"
+                )
+            else:  # all pending
+                db_query = session.query(Draft).filter(
+                    Draft.status.in_(["pending", "pending_live"])
+                )
             total = db_query.count()
             drafts = db_query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
             if not drafts:
                 await query.edit_message_text("No more drafts.")
                 return
-            pages = (total - 1) // 10 + 1
-            msg = f"📋 Drafts ({filter_arg}) – page {page+1}/{pages}\n\n"
+            # Send each draft individually with Copy buttons
             for d in drafts:
-                preview = d.text_variants[0][:60] + "..." if d.text_variants[0] and len(d.text_variants[0]) > 60 else d.text_variants[0]
-                msg += f"#{d.id} [{d.persona}] {preview}\n"
-            keyboard = None
+                variants = d.text_variants
+                content_label = "📡 LIVE" if d.content_type == "live" else "📄 Normal"
+                header = f"📰 Draft #{d.id} — [{d.persona}] {content_label}"
+                msg = header + "\n\n" + "\n\n".join(
+                    f"**V{i+1}:** {v}" for i, v in enumerate(variants)
+                )
+                await query.message.reply_text(
+                    msg,
+                    reply_markup=copy_buttons(d.id, variants),
+                    parse_mode="Markdown"
+                )
+            # Pagination button at the end
+            pages = (total - 1) // 10 + 1
             if page + 1 < pages:
                 keyboard = InlineKeyboardMarkup([[
-                    InlineKeyboardButton("Older ➡️", callback_data=f"drafts_{filter_arg}_{page+1}")
+                    InlineKeyboardButton("Older ➡️", callback_data=f"queue_{filter_arg}_{page+1}")
                 ]])
-            await query.edit_message_text(msg, reply_markup=keyboard)
+                await query.message.reply_text(
+                    f"📋 Page {page+1}/{pages} – tap Older for more",
+                    reply_markup=keyboard
+                )
 
     elif data.startswith("copy_"):
         _, draft_id, variant_idx = data.split("_")
