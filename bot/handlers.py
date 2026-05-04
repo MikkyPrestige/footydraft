@@ -30,28 +30,60 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def queue_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show each pending draft (normal + live) with Copy buttons."""
-    with SessionLocal() as session:
-        drafts = session.query(Draft).filter(
-            Draft.status.in_(["pending", "pending_live"])
-        ).order_by(Draft.created_at.desc()).all()
+    """Paginated queue (10 per page) – each draft gets its own Copy buttons."""
+    filter_arg = context.args[0].lower() if context.args else "all"
+    page = int(context.args[1]) if len(context.args) > 1 else 0
 
-    if not drafts:
-        await update.message.reply_text("📭 No pending drafts.")
+    if filter_arg not in ("all", "normal", "live"):
+        await update.message.reply_text("Usage: /queue [normal|live]")
         return
 
-    for draft in drafts:
-        variants = draft.text_variants
-        content_label = "📡 LIVE" if draft.content_type == "live" else "📄 Normal"
-        header = f"📰 Draft #{draft.id} — [{draft.persona}] {content_label}"
-        msg = header + "\n\n" + "\n\n".join(
-            f"**V{i+1}:** {v}" for i, v in enumerate(variants)
-        )
-        await update.message.reply_text(
-            msg,
-            reply_markup=copy_buttons(draft.id, variants),
-            parse_mode="Markdown"
-        )
+    with SessionLocal() as session:
+        if filter_arg == "normal":
+            db_query = session.query(Draft).filter(
+                Draft.status == "pending",
+                Draft.content_type == "normal"
+            )
+        elif filter_arg == "live":
+            db_query = session.query(Draft).filter(
+                Draft.status == "pending_live"
+            )
+        else:  # all pending
+            db_query = session.query(Draft).filter(
+                Draft.status.in_(["pending", "pending_live"])
+            )
+
+        total = db_query.count()
+        drafts = db_query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
+
+        if not drafts:
+            await update.message.reply_text(f"📭 No pending drafts for filter '{filter_arg}'.")
+            return
+
+        # Send each draft as a separate message with Copy buttons
+        for d in drafts:
+            variants = d.text_variants
+            content_label = "📡 LIVE" if d.content_type == "live" else "📄 Normal"
+            header = f"📰 Draft #{d.id} — [{d.persona}] {content_label}"
+            msg = header + "\n\n" + "\n\n".join(
+                f"**V{i+1}:** {v}" for i, v in enumerate(variants)
+            )
+            await update.message.reply_text(
+                msg,
+                reply_markup=copy_buttons(d.id, variants),
+                parse_mode="Markdown"
+            )
+
+        # Pagination button at the end
+        pages = (total - 1) // 10 + 1
+        if page + 1 < pages:
+            keyboard = InlineKeyboardMarkup([[
+                InlineKeyboardButton("Older ➡️", callback_data=f"queue_{filter_arg}_{page+1}")
+            ]])
+            await update.message.reply_text(
+                f"📋 Page {page+1}/{pages} – tap Older for more",
+                reply_markup=keyboard
+            )
 
 async def posted(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -220,42 +252,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("queue_"):
         _, filter_arg, page_str = data.split("_", 2)
         page = int(page_str)
-        with SessionLocal() as session:
-            if filter_arg == "normal":
-                db_query = session.query(Draft).filter(
-                    Draft.status == "pending",
-                    Draft.content_type == "normal"
-                )
-            elif filter_arg == "live":
-                db_query = session.query(Draft).filter(
-                    Draft.status == "pending_live"
-                )
-            else:  # all pending
-                db_query = session.query(Draft).filter(
-                    Draft.status.in_(["pending", "pending_live"])
-                )
-            total = db_query.count()
-            drafts = db_query.order_by(Draft.created_at.desc()).offset(page * 10).limit(10).all()
-            if not drafts:
-                await query.edit_message_text("No more drafts.")
-                return
-            pages = (total - 1) // 10 + 1
-            filter_label = {"all": "all pending", "normal": "normal", "live": "live"}[filter_arg]
-            msg = f"📋 Pending Drafts ({filter_label}) – page {page+1}/{pages}\n\n"
-            for d in drafts:
-                variants = d.text_variants
-                header = f"📰 Draft #{d.id} — [{d.persona}] {d.content_type}"
-                msg += header + "\n" + "\n".join(
-                    f"**V{i+1}:** {v}" for i, v in enumerate(variants)
-                ) + "\n\n"
-            keyboard = None
-            if page + 1 < pages:
-                keyboard = InlineKeyboardMarkup([[
-                    InlineKeyboardButton("Older ➡️", callback_data=f"queue_{filter_arg}_{page+1}")
-                ]])
-            await query.edit_message_text(msg, reply_markup=keyboard, parse_mode="Markdown")
-
-    elif data.startswith("drafts_"):
         _, filter_arg, page_str = data.split("_", 2)
         page = int(page_str)
         with SessionLocal() as session:
