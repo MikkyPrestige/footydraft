@@ -394,19 +394,24 @@ async def impressions_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await stats(update, context)
 
 async def clearqueue(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Delete pending drafts. Use /clearqueue live to clear only live drafts."""
+    """Delete pending drafts. Use /clearqueue live|normal to clear only live or only normal."""
     filter_arg = context.args[0].lower() if context.args else "all"
     with SessionLocal() as session:
         if filter_arg == "live":
             deleted = session.query(Draft).filter(
                 Draft.status == "pending_live"
             ).delete()
+        elif filter_arg == "normal":
+            deleted = session.query(Draft).filter(
+                Draft.status == "pending",
+                Draft.content_type == "normal"
+            ).delete()
         else:
             deleted = session.query(Draft).filter(
                 Draft.status.in_(["pending", "pending_live"])
             ).delete()
         session.commit()
-    label = "live" if filter_arg == "live" else "pending"
+    label = filter_arg if filter_arg in ("live", "normal") else "pending"
     await update.message.reply_text(f"🗑️ {deleted} {label} draft(s) cleared.")
 
 async def hold_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
