@@ -10,6 +10,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")              # keep as backup
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 API_FOOTBALL_KEY = os.getenv("API_FOOTBALL_KEY")
 THESPORTSDB_API_KEY = os.getenv("THESPORTSDB_API_KEY", "3")
+XQUIK_API_KEY = os.getenv("XQUIK_API_KEY")
+XQUIK_API_BASE_URL = os.getenv("XQUIK_API_BASE_URL", "https://xquik.com").rstrip("/")
+XQUIK_POSTING_ENABLED = os.getenv("XQUIK_POSTING_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
 
 # Database
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///data/agent.db")

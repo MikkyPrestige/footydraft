@@ -1,21 +1,22 @@
 # ⚽ Football X Agent
 
 An AI‑powered assistant that helps you run a high‑quality, on‑trend football Twitter (X) account.  
-It continuously monitors **free** news sources, generates context‑aware tweet drafts using a large language model, and delivers them to you via a Telegram bot for manual review and posting.  
-Over time, it learns from your engagement metrics to refine its writing style — all while keeping **you** in full control.
+It continuously monitors **free** news sources, generates context‑aware tweet drafts using a large language model, and delivers them to you via a Telegram bot for manual review, copying, and optional Xquik posting.
+Over time, it learns from your engagement metrics to refine its writing style - all while keeping **you** in full control.
 
 ---
 
 ## ✨ Features
 
-- **Real‑time news ingestion** (RSS, Reddit, Google News, API‑Football) — 100% free  
+- **Real‑time news ingestion** (RSS, Reddit, Google News, API‑Football) - 100% free
 - **Hybrid tweet drafting** with three personas (pundit, fan, analyst)  
 - **Three variants per normal event**, one per live match event  
 - **Telegram bot** for reviewing, copying, and tracking drafts  
-- **Manual feedback loop** — enter tweet engagement metrics without the X API  
+- **Manual feedback loop** - enter tweet engagement metrics without the X API
+- **Optional Xquik posting** - publish approved drafts only when `XQUIK_POSTING_ENABLED=1`
 - **Weekly analytics** that suggest style improvements based on your best‑performing tweets  
 - **Deduplication & age filters** to avoid stale or repeated content  
-- **Deployable 24/7** on Fly.io (or any Docker‑compatible platform) — costs < $2/month  
+- **Deployable 24/7** on Fly.io (or any Docker‑compatible platform) - costs < $2/month
 
 ---
 
@@ -26,7 +27,7 @@ Over time, it learns from your engagement metrics to refine its writing style �
 3. **Deduplication Engine** ensures the same story doesn’t generate repeated drafts within 24 hours.  
 4. **Prompt Builder** combines your account’s persona, the selected mode (pundit/fan/analyst), active style rules, and your top‑performing tweets as few‑shot examples.  
 5. **LLM Client** (Groq, free tier) generates tweet drafts.  
-6. **Telegram Bot** shows pending drafts in a queue with inline “Copy” buttons, and pushes live‑event drafts instantly.  
+6. **Telegram Bot** shows pending drafts in a queue with inline “Copy” buttons, optional `/postx` publishing, and instant live‑event drafts.
 7. **Analytics Engine** runs weekly, identifies patterns in your engagement data, and suggests natural‑language rules you can approve or reject.
 
 ---
@@ -91,6 +92,7 @@ python -m bot.main
 - `/start` – welcome message
 - `/queue` – view pending normal drafts
 - `/posted <draft_id>` – mark a draft as posted
+- `/postx <draft_id> [variant]` – post an approved draft with Xquik
 - `/metrics <tweet_ref> <likes> <retweets> <replies> <impressions>` – enter engagement
 - `/stats` – top & bottom tweets
 - `/rules` – manage style rules
@@ -137,6 +139,9 @@ All important settings are in `config/settings.py` and can be overridden with en
 | `GROQ_API_KEY` | – | Groq API key (fallback) |
 | `API_FOOTBALL_KEY` | – | API‑Football key (optional) |
 | `DATABASE_URL` | `sqlite:///data/agent.db` | DB connection string |
+| `XQUIK_POSTING_ENABLED` | `0` | Set to `1` to enable `/postx` publishing |
+| `XQUIK_API_KEY` | – | Xquik API key used by `/postx` |
+| `XQUIK_API_BASE_URL` | `https://xquik.com` | Override for custom Xquik deployments |
 | `NORMAL_DAILY_CAP` | 5 | Max normal tweets posted per day |
 | `LIVE_MATCH_HOURLY_CAP` | 10 | Max live tweets per match hour |
 | `MAX_ITEM_AGE_HOURS` | 12 | Discard news older than this |
@@ -158,7 +163,7 @@ python -m tests.test_queue_manager
 ## 🗺 Roadmap / Future
 
 - [ ] Web dashboard (Streamlit)
-- [ ] Optional safe auto‑posting with kill‑switch
+- [ ] Optional scheduled auto‑posting with kill‑switch
 - [ ] More news sources (Livescore, OneFootball)
 - [ ] Multi‑language support
 

@@ -7,7 +7,7 @@ from bot.handlers import (
     hold_draft,
     release_draft,
     start, queue_callback, stats, rules, addrule, source_status,
-    posted, metrics, button_handler, backup_cmd, livecheck, tweets_cmd, impressions_cmd
+    posted, postx, metrics, button_handler, backup_cmd, livecheck, tweets_cmd, impressions_cmd
 )
 
 async def push_live_drafts(context):
@@ -27,7 +27,7 @@ async def push_live_drafts(context):
 
             for draft in live_drafts:
                 variants = draft.text_variants
-                header = f"📡 LIVE Draft #{draft.id} — [{draft.persona}]"
+                header = f"📡 LIVE Draft #{draft.id} - [{draft.persona}]"
                 msg = header + "\n\n" + "\n\n".join(
                     f"**V{i+1}:** {v}" for i, v in enumerate(variants)
                 )
@@ -52,6 +52,7 @@ def main():
     app.add_handler(CommandHandler("hold", hold_draft))
     app.add_handler(CommandHandler("release", release_draft))
     app.add_handler(CommandHandler("posted", posted))
+    app.add_handler(CommandHandler("postx", postx))
     app.add_handler(CommandHandler("metrics", metrics))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("rules", rules))
