@@ -14,6 +14,7 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 - **Telegram bot** for reviewing, copying, and tracking drafts
 - **Manual feedback loop** - enter tweet engagement metrics without the X API
 - **Optional Xquik posting** - publish approved drafts only when `XQUIK_POSTING_ENABLED=1`
+- **Automatic database backups** – compressed backup on every boot and nightly at 3 AM UTC (Dropbox primary, Telegram secondary)
 - **Weekly analytics** that suggest style improvements based on your best‑performing tweets
 - **Deduplication & age filters** to avoid stale or repeated content
 - **Deployable 24/7** on Fly.io (or any Docker‑compatible platform)
@@ -29,6 +30,7 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 5. **LLM Client** (Groq, free tier) generates tweet drafts.
 6. **Telegram Bot** shows pending drafts in a queue with inline “Copy” buttons, optional `/postx` publishing, and instant live‑event drafts.
 7. **Analytics Engine** runs weekly, identifies patterns in your engagement data, and suggests natural‑language rules you can approve or reject.
+8. **Backup Engine** – automatically creates a gzipped database backup on every machine restart and daily at 3 AM UTC, uploading to Dropbox (primary) and Telegram (secondary).
 
 ---
 
@@ -60,7 +62,7 @@ football-x-agent/
 │   │   └── xquik.py
 │   ├── analytics/
 │   │   └── engine.py        # Weekly rule suggestions
-│   ├── backup.py            # SQLite → Telegram backup
+│   ├── backup.py            # Dropbox & Telegram backup (gzipped)
 │   ├── database.py          # SQLAlchemy init & session
 │   ├── models.py            # ORM models (Draft, Tweet, Rule, etc.)
 │   └── scheduler.py         # Main loop
@@ -132,7 +134,6 @@ python -m bot.main
 - `/rules` – manage style rules (accept/reject auto‑suggestions)
 - `/addrule <text>` – add a manual style rule
 - `/source_status` – health of news sources
-- `/backup` – download a copy of the database
 - `/livecheck` – force check for live matches
 - `/clearqueue` – delete all pending drafts (or only `normal` / `live`)
 
