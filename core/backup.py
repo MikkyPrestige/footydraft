@@ -1,5 +1,6 @@
 """Database backup: copies SQLite file and uploads to Dropbox + Telegram."""
 import os
+import gzip
 import shutil
 import requests
 from datetime import datetime
@@ -47,18 +48,21 @@ def send_backup_to_telegram(backup_path: str):
             raise RuntimeError(f"Failed to send backup to Telegram: {response.text}")
 
 def upload_to_dropbox(backup_path: str):
-    """Upload the backup file to Dropbox (App folder)."""
+    """Compress the backup and upload to Dropbox (App folder)."""
     import dropbox
     dbx = dropbox.Dropbox(
         oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
         app_key=DROPBOX_APP_KEY,
         app_secret=DROPBOX_APP_SECRET,
     )
-    # The file will be placed in /backups/ inside the app folder
-    dest_path = f"/backups/{os.path.basename(backup_path)}"
-    with open(backup_path, "rb") as f:
+    gz_path = backup_path + ".gz"
+    with open(backup_path, "rb") as f_in, gzip.open(gz_path, "wb") as f_out:
+        f_out.writelines(f_in)
+    dest_path = f"/backups/{os.path.basename(gz_path)}"
+    with open(gz_path, "rb") as f:
         dbx.files_upload(f.read(), dest_path, mode=dropbox.files.WriteMode.overwrite)
-    print(f"Uploaded backup to Dropbox: {dest_path}")
+    os.remove(gz_path)  # cleanup local .gz after upload
+    print(f"Uploaded compressed backup to Dropbox: {dest_path}")
 
 def daily_backup():
     """Create and upload a database backup to Dropbox, then also to Telegram."""
