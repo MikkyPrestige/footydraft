@@ -20,6 +20,7 @@ print('Stale event cache cleared')
 
 # Initialize database (creates tables if missing)
 python -c "from core.database import init_db; init_db(); print('Database ready')"
+python -c "from core.backup import daily_backup; daily_backup(); print("Startup backup created")"
 
 # Start scheduler in background
 python -m core.scheduler &
