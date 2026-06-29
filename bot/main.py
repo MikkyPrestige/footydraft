@@ -1,6 +1,6 @@
 """Telegram bot entry point. Run with: python -m bot.main"""
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
-from config.settings import TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID
+from config.settings import TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, XQUIK_POSTING_ENABLED
 from bot.handlers import (
     clearqueue,
     drafts_cmd,
@@ -52,6 +52,7 @@ def main():
     app.add_handler(CommandHandler("hold", hold_draft))
     app.add_handler(CommandHandler("release", release_draft))
     app.add_handler(CommandHandler("posted", posted))
+    if XQUIK_POSTING_ENABLED:
     app.add_handler(CommandHandler("postx", postx))
     app.add_handler(CommandHandler("metrics", metrics))
     app.add_handler(CommandHandler("stats", stats))
