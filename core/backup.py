@@ -60,30 +60,39 @@ def upload_to_dropbox(backup_path: str):
 
 
 def daily_backup():
-    """Create and upload a database backup. Returns path."""
+    """Create and upload a database backup. Returns path, or None if locked."""
     global _last_backup_time
 
-    # Enforce minimum interval
-    now = datetime.utcnow()
-    if _last_backup_time and (now - _last_backup_time).total_seconds() < MIN_BACKUP_INTERVAL_SECONDS:
-        raise RuntimeError("Backup too soon – please wait a minute.")
-    _last_backup_time = now
+    # File‑based lock to prevent concurrent backups
+    lockfile = os.path.join(BACKUP_DIR, "backup.lock")
+    if os.path.exists(lockfile):
+        print("Backup already in progress.")
+        return None
+    open(lockfile, "w").close()
+    try:
+        # Enforce minimum interval
+        now = datetime.utcnow()
+        if _last_backup_time and (now - _last_backup_time).total_seconds() < MIN_BACKUP_INTERVAL_SECONDS:
+            raise RuntimeError("Backup too soon – please wait a minute.")
+        _last_backup_time = now
 
-    # Create backup
-    path = create_backup()
+        # Create backup
+        path = create_backup()
 
-    # Upload to Dropbox (primary)
-    if DROPBOX_REFRESH_TOKEN:
-        upload_to_dropbox(path)
+        # Upload to Dropbox (primary)
+        if DROPBOX_REFRESH_TOKEN:
+            upload_to_dropbox(path)
 
-    # Also send to Telegram (secondary)
-    send_backup_to_telegram(path)
+        # Also send to Telegram (secondary)
+        send_backup_to_telegram(path)
 
-    # Keep only last 7 local backups
-    all_backups = sorted([
-        os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
-    ], key=os.path.getmtime)
-    for old in all_backups[:-7]:
-        os.remove(old)
+        # Keep only last 7 local backups
+        all_backups = sorted([
+            os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
+        ], key=os.path.getmtime)
+        for old in all_backups[:-7]:
+            os.remove(old)
 
-    return path
+        return path
+    finally:
+        os.remove(lockfile)
