@@ -1,6 +1,6 @@
 # ⚽ Football X Agent
 
-An AI‑powered assistant that helps you run a high‑quality, on‑trend football Twitter (X) account.  
+An AI‑powered assistant that helps you run a high‑quality, on‑trend football Twitter (X) account.
 It continuously monitors **free** news sources, generates context‑aware tweet drafts using a large language model, and delivers them to you via a Telegram bot for manual review, copying, and optional Xquik posting.
 Over time, it learns from your engagement metrics to refine its writing style - all while keeping **you** in full control.
 
@@ -9,24 +9,24 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 ## ✨ Features
 
 - **Real‑time news ingestion** (RSS, Reddit, Google News, API‑Football) - 100% free
-- **Hybrid tweet drafting** with three personas (pundit, fan, analyst)  
-- **Three variants per normal event**, one per live match event  
-- **Telegram bot** for reviewing, copying, and tracking drafts  
+- **Hybrid tweet drafting** with three personas (pundit, fan, analyst)
+- **Three variants per normal event**, one per live match event
+- **Telegram bot** for reviewing, copying, and tracking drafts
 - **Manual feedback loop** - enter tweet engagement metrics without the X API
 - **Optional Xquik posting** - publish approved drafts only when `XQUIK_POSTING_ENABLED=1`
-- **Weekly analytics** that suggest style improvements based on your best‑performing tweets  
-- **Deduplication & age filters** to avoid stale or repeated content  
-- **Deployable 24/7** on Fly.io (or any Docker‑compatible platform) - costs < $2/month
+- **Weekly analytics** that suggest style improvements based on your best‑performing tweets
+- **Deduplication & age filters** to avoid stale or repeated content
+- **Deployable 24/7** on Fly.io (or any Docker‑compatible platform)
 
 ---
 
 ## 🧠 How It Works
 
-1. **News Fetchers** pull headlines from BBC, Sky Sports, ESPN, The Guardian, Daily Mail, Reddit, Google News, and live match data from API‑Football.  
-2. **Event Classifier** tags each story (goal, transfer, stats, debate, meme, etc.) using keyword rules.  
-3. **Deduplication Engine** ensures the same story doesn’t generate repeated drafts within 24 hours.  
-4. **Prompt Builder** combines your account’s persona, the selected mode (pundit/fan/analyst), active style rules, and your top‑performing tweets as few‑shot examples.  
-5. **LLM Client** (Groq, free tier) generates tweet drafts.  
+1. **News Fetchers** pull headlines from BBC, Sky Sports, ESPN, The Guardian, Daily Mail, Reddit, Google News, and live match data from API‑Football.
+2. **Event Classifier** tags each story (goal, transfer, stats, debate, meme, etc.) using keyword rules.
+3. **Deduplication Engine** ensures the same story doesn’t generate repeated drafts within 24 hours.
+4. **Prompt Builder** combines your account’s persona, the selected mode (pundit/fan/analyst), active style rules, and your top‑performing tweets as few‑shot examples.
+5. **LLM Client** (Groq, free tier) generates tweet drafts.
 6. **Telegram Bot** shows pending drafts in a queue with inline “Copy” buttons, optional `/postx` publishing, and instant live‑event drafts.
 7. **Analytics Engine** runs weekly, identifies patterns in your engagement data, and suggests natural‑language rules you can approve or reject.
 
@@ -36,19 +36,46 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 
 ```
 football-x-agent/
-├── config/          # Persona definitions, settings
-├── core/            # Engine (UI‑agnostic)
-│   ├── ingestion/   # News fetchers (RSS, Reddit, Google News, API‑Football)
-│   ├── classification/  # Event tagger, deduplication
-│   ├── generation/  # Prompt builder, LLM client, queue manager
-│   ├── tracking/    # (future) automatic tweet matching
-│   └── analytics/   # Weekly performance analysis
-├── bot/             # Telegram bot interface
-├── data/            # SQLite database (auto‑created)
-├── tests/           # Unit & integration tests
-├── Dockerfile       # Containerised deployment
-├── fly.toml         # Fly.io configuration
-└── start.sh         # Startup script (runs both scheduler & bot)
+├── config/
+│   ├── settings.py          # Environment variables & constants
+│   └── personas.yaml        # Persona definitions (pundit, fan, analyst)
+├── core/                    # Engine (UI‑agnostic)
+│   ├── ingestion/           # News fetchers
+│   │   ├── base.py          # Abstract BaseFetcher + NewsItem
+│   │   ├── rss_fetcher.py   # BBC, Sky, ESPN, Guardian, etc.
+│   │   ├── reddit_fetcher.py
+│   │   ├── google_news_fetcher.py
+│   │   ├── api_football_fetcher.py
+│   │   ├── espn_fetcher.py  # ESPN hidden API (CL, Europa, cups)
+│   │   └── monitor.py       # Source health monitoring
+│   ├── classification/
+│   │   ├── event_tagger.py  # Keyword‑based tagger
+│   │   └── dedup.py         # Content‑hash deduplication
+│   ├── generation/
+│   │   ├── prompt_builder.py
+│   │   ├── llm_client.py    # Groq (primary), DeepSeek (fallback)
+│   │   └── queue_manager.py # Draft creation & daily caps
+│   ├── publishing/          # Optional Xquik posting
+│   │   ├── __init__.py
+│   │   └── xquik.py
+│   ├── analytics/
+│   │   └── engine.py        # Weekly rule suggestions
+│   ├── backup.py            # SQLite → Telegram backup
+│   ├── database.py          # SQLAlchemy init & session
+│   ├── models.py            # ORM models (Draft, Tweet, Rule, etc.)
+│   └── scheduler.py         # Main loop
+├── bot/
+│   ├── handlers.py          # All command handlers
+│   ├── keyboard.py          # Inline keyboards (Copy, pagination)
+│   └── main.py              # Bot entry point + live‑draft push
+├── data/                    # SQLite database (auto‑created)
+├── tests/                   # Unit & integration tests
+├── .env.example             # Environment template
+├── Dockerfile               # Containerised deployment
+├── fly.toml                 # Fly.io configuration
+├── requirements.txt
+├── start.sh                 # Startup script (scheduler + bot)
+└── README.md
 ```
 
 ---
@@ -89,22 +116,31 @@ python -m bot.main
 ```
 
 ### 4. Open Telegram & try commands
-- `/start` – welcome message
-- `/queue` – view pending normal drafts
-- `/posted <draft_id>` – mark a draft as posted
-- `/postx <draft_id> [variant]` – post an approved draft with Xquik
+- `/start` – welcome message with full command list
+- `/queue` – view pending drafts (all, normal, or live) with Copy buttons & pagination
+- `/queue normal` – only normal pending drafts
+- `/queue live` – only live-match drafts
+- `/drafts` – browse all drafts (`all`, `pending`, `held`, `posted`) with pagination
+- `/hold <draft_id>` – quarantine a pending draft
+- `/release <draft_id>` – return a held draft to the queue
+- `/posted <draft_id>` – mark a draft as manually posted & link a tweet
+- `/postx <draft_id> [variant]` – post an approved draft via Xquik (requires `XQUIK_POSTING_ENABLED=1`)
 - `/metrics <tweet_ref> <likes> <retweets> <replies> <impressions>` – enter engagement
-- `/stats` – top & bottom tweets
-- `/rules` – manage style rules
-- `/addrule <text>` – add a manual rule
+- `/stats` – top & bottom tweets by likes (default), impressions, or list all posted tweets
+- `/tweets` – list all posted tweets with refs
+- `/impressions` – top & bottom tweets by impressions
+- `/rules` – manage style rules (accept/reject auto‑suggestions)
+- `/addrule <text>` – add a manual style rule
 - `/source_status` – health of news sources
 - `/backup` – download a copy of the database
+- `/livecheck` – force check for live matches
+- `/clearqueue` – delete all pending drafts (or only `normal` / `live`)
 
 ---
 
 ## ☁️ Deploying to Fly.io (24/7)
 
-The project includes a `Dockerfile` and `fly.toml` for one‑click deployment to [Fly.io](https://fly.io).  
+The project includes a `Dockerfile` and `fly.toml` for one‑click deployment to [Fly.io](https://fly.io).
 It runs both the scheduler and the Telegram bot in a single small VM (~$1.94/month).
 
 1. Install the **Fly CLI**: `curl -L https://fly.io/install.sh | sh`
