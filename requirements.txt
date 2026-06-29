@@ -8,4 +8,5 @@ sqlalchemy
 python-dotenv
 schedule
 pyyaml
-pytestdropbox
+pytest
+dropbox
