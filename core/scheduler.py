@@ -11,6 +11,7 @@ from core.ingestion.api_football_fetcher import APIFootballFetcher
 from core.ingestion.espn_fetcher import ESPNFetcher
 from core.generation.queue_manager import process_item
 from core.analytics.engine import run_weekly_analytics
+from core.backup import daily_backup as daily_backup_job
 
 MAX_ITEMS_PER_SOURCE = 5
 MAX_LLM_CALLS_PER_CYCLE = 6
@@ -103,6 +104,7 @@ def analytics_job():
 def main():
     schedule.every(30).minutes.do(job)
     schedule.every().tuesday.at("02:00").do(analytics_job)
+    schedule.every().day.at("03:00").do(daily_backup_job)
     print("Scheduler started — news every 30 min, analytics on Monday 02:00.")
     job()
     while True:

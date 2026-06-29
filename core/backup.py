@@ -1,9 +1,16 @@
-"""Database backup: copies SQLite file and sends it to Telegram."""
+"""Database backup: copies SQLite file and uploads to Dropbox + Telegram."""
 import os
 import shutil
 import requests
 from datetime import datetime
-from config.settings import DATABASE_URL, TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID
+from config.settings import (
+    DATABASE_URL,
+    TELEGRAM_BOT_TOKEN,
+    ADMIN_CHAT_ID,
+    DROPBOX_APP_KEY,
+    DROPBOX_APP_SECRET,
+    DROPBOX_REFRESH_TOKEN,
+)
 
 DB_PATH = DATABASE_URL.replace("sqlite:///", "")
 BACKUP_DIR = "data/backups"
@@ -18,20 +25,38 @@ def create_backup() -> str:
     return backup_path
 
 def send_backup_to_telegram(backup_path: str):
-    """Send the backup file to the admin's Telegram Saved Messages."""
+    """Send the backup file to the admin's Telegram chat."""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
     with open(backup_path, "rb") as f:
         files = {"document": f}
         data = {"chat_id": ADMIN_CHAT_ID}
         response = requests.post(url, files=files, data=data)
         if response.status_code != 200:
-            raise RuntimeError(f"Failed to send backup: {response.text}")
+            raise RuntimeError(f"Failed to send backup to Telegram: {response.text}")
+
+def upload_to_dropbox(backup_path: str):
+    """Upload the backup file to Dropbox (App folder)."""
+    import dropbox
+    dbx = dropbox.Dropbox(
+        oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+        app_key=DROPBOX_APP_KEY,
+        app_secret=DROPBOX_APP_SECRET,
+    )
+    # The file will be placed in /backups/ inside the app folder
+    dest_path = f"/backups/{os.path.basename(backup_path)}"
+    with open(backup_path, "rb") as f:
+        dbx.files_upload(f.read(), dest_path, mode=dropbox.files.WriteMode.overwrite)
+    print(f"Uploaded backup to Dropbox: {dest_path}")
 
 def daily_backup():
-    """Create and send a database backup. Call from scheduler or /backup command."""
+    """Create and upload a database backup to Dropbox, then also to Telegram."""
     path = create_backup()
+    # Upload to Dropbox (primary)
+    if DROPBOX_REFRESH_TOKEN:
+        upload_to_dropbox(path)
+    # Also send to Telegram (secondary)
     send_backup_to_telegram(path)
-    # Optional: keep only last 7 backups
+    # Keep only last 7 local backups
     all_backups = sorted([
         os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
     ], key=os.path.getmtime)
