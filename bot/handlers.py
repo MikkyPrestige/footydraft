@@ -302,19 +302,6 @@ async def source_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 
-async def backup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    from core.backup import daily_backup
-    try:
-        path = daily_backup()
-        if path is None:
-            await update.message.reply_text("⏳ Backup already in progress. Please wait.")
-            return
-        await update.message.reply_text(f"✅ Backup created and sent: {path}")
-    except RuntimeError as e:
-        await update.message.reply_text(f"⏳ {e}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Backup failed: {e}")
-
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -558,12 +545,3 @@ async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(msg, reply_markup=keyboard)
 
-async def clear_backup_lock(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Remove the backup lock file if it exists."""
-    import os
-    lockfile = "data/backups/backup.lock"
-    if os.path.exists(lockfile):
-        os.remove(lockfile)
-        await update.message.reply_text("✅ Backup lock cleared.")
-    else:
-        await update.message.reply_text("ℹ️ No backup lock file found.")
