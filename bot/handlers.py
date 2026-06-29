@@ -5,6 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from core.database import SessionLocal
 from core.models import Draft, Tweet, Rule, SourceHealth
+from core.publishing.xquik import XquikPublishError, publish_tweet
 from bot.keyboard import copy_buttons
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -17,6 +18,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/hold <draft_id> - Quarantine a pending draft\n"
         "/release <draft_id> - Return a held draft to queue\n"
         "/posted <draft_id> - Mark a draft as posted & link tweet\n"
+        "/postx <draft_id> [variant] - Post an approved draft with Xquik\n"
         "/metrics <tweet_id> <likes> <retweets> <replies> <impressions> - Enter engagement\n"
         "/stats - Top & bottom tweets (add: all, impressions, or leave empty for likes)\n"
         "/tweets - List all posted tweets\n"
@@ -64,7 +66,7 @@ async def queue_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for d in drafts:
             variants = d.text_variants
             content_label = "📡 LIVE" if d.content_type == "live" else "📄 Normal"
-            header = f"📰 Draft #{d.id} — [{d.persona}] {content_label}"
+            header = f"📰 Draft #{d.id} - [{d.persona}] {content_label}"
             msg = header + "\n\n" + "\n\n".join(
                 f"**V{i+1}:** {v}" for i, v in enumerate(variants)
             )
@@ -117,6 +119,66 @@ async def posted(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✅ Draft #{draft_id} marked as posted and linked to tweet `{tweet_ref}`.\n"
         "Later, use `/metrics {tweet_ref} <likes> <retweets> <replies> <impressions>` to add engagement."
+    )
+
+async def postx(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Usage: /postx <draft_id> [variant]")
+        return
+
+    try:
+        draft_id = int(context.args[0])
+        variant_idx = int(context.args[1]) - 1 if len(context.args) > 1 else 0
+    except ValueError:
+        await update.message.reply_text("Draft ID and variant must be numbers.")
+        return
+
+    with SessionLocal() as session:
+        draft = session.get(Draft, draft_id)
+        if not draft:
+            await update.message.reply_text("Draft not found.")
+            return
+        if draft.status == "posted":
+            await update.message.reply_text(f"Draft #{draft_id} is already posted.")
+            return
+        if draft.status not in ("pending", "pending_live"):
+            await update.message.reply_text(f"Draft #{draft_id} is not pending (status: {draft.status}).")
+            return
+        if variant_idx < 0 or variant_idx >= len(draft.text_variants):
+            await update.message.reply_text(f"Variant must be between 1 and {len(draft.text_variants)}.")
+            return
+        text = draft.text_variants[variant_idx]
+
+    try:
+        tweet_ref = publish_tweet(text)
+    except XquikPublishError as e:
+        await update.message.reply_text(f"Xquik post failed: {e}")
+        return
+
+    with SessionLocal() as session:
+        draft = session.get(Draft, draft_id)
+        if not draft or draft.status == "posted":
+            await update.message.reply_text(f"Posted with Xquik as `{tweet_ref}`, but draft status changed.")
+            return
+
+        tweet = Tweet(
+            id=tweet_ref,
+            draft_id=draft.id,
+            text=text,
+            posted_at=datetime.utcnow(),
+            likes=0,
+            retweets=0,
+            replies=0,
+            impressions=0,
+        )
+        session.add(tweet)
+        draft.status = "posted"
+        draft.selected_variant = variant_idx
+        session.commit()
+
+    await update.message.reply_text(
+        f"✅ Draft #{draft_id} posted with Xquik as `{tweet_ref}`.\n"
+        f"Later, use `/metrics {tweet_ref} <likes> <retweets> <replies> <impressions>` to add engagement."
     )
 
 async def metrics(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -175,7 +237,9 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bottom3 = tweets[-3:] if len(tweets) >= 3 else []
         metric_label = "Likes" if option == "likes" else "Impressions"
         heart = "❤️" if option == "likes" else "👀"
-        val = lambda t: t.likes if option == "likes" else t.impressions
+
+        def val(t):
+            return t.likes if option == "likes" else t.impressions
 
         msg = "📊 **Tweet Performance (last 7 days)**\n\n"
         msg += f"**Top 5 by {metric_label}:**\n"
@@ -275,7 +339,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for d in drafts:
                 variants = d.text_variants
                 content_label = "📡 LIVE" if d.content_type == "live" else "📄 Normal"
-                header = f"📰 Draft #{d.id} — [{d.persona}] {content_label}"
+                header = f"📰 Draft #{d.id} - [{d.persona}] {content_label}"
                 msg = header + "\n\n" + "\n\n".join(
                     f"**V{i+1}:** {v}" for i, v in enumerate(variants)
                 )
@@ -354,11 +418,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if rule:
                 session.delete(rule)
                 session.commit()
-                await query.edit_message_text(f"❌ Rule rejected and removed.")
+                await query.edit_message_text("❌ Rule rejected and removed.")
 
 async def livecheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Force a live-match check via API-Football and return results."""
-    import asyncio
     from core.ingestion.api_football_fetcher import APIFootballFetcher
     from core.classification.event_tagger import classify_item
 
