@@ -3,6 +3,9 @@
 
 echo "Starting Football Twitter Agent..."
 
+# Remove stale backup lock file (if any)
+rm -f /app/data/backups/backup.lock
+
 # Only clear old event cache > 24h, keep drafts intact
 python -c "
 from core.database import SessionLocal
