@@ -64,6 +64,7 @@ def main():
     app.add_handler(CommandHandler("tweets", tweets_cmd))
     app.add_handler(CommandHandler("impressions", impressions_cmd))
     app.add_handler(CommandHandler("clearqueue", clearqueue))
+    app.add_handler(CommandHandler("clear_backup_lock", clear_backup_lock))
     app.add_handler(CallbackQueryHandler(button_handler))
 
     # Live-draft push job (every 20 seconds, first run after 5 seconds)

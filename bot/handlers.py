@@ -557,3 +557,13 @@ async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]])
 
         await update.message.reply_text(msg, reply_markup=keyboard)
+
+async def clear_backup_lock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Remove the backup lock file if it exists."""
+    import os
+    lockfile = "data/backups/backup.lock"
+    if os.path.exists(lockfile):
+        os.remove(lockfile)
+        await update.message.reply_text("✅ Backup lock cleared.")
+    else:
+        await update.message.reply_text("ℹ️ No backup lock file found.")
