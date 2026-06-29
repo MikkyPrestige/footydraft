@@ -15,6 +15,18 @@ from config.settings import (
 DB_PATH = DATABASE_URL.replace("sqlite:///", "")
 BACKUP_DIR = "data/backups"
 
+_last_backup_time: datetime | None = None
+MIN_BACKUP_INTERVAL_SECONDS = 60
+
+def is_backup_allowed() -> bool:
+    global _last_backup_time
+    now = datetime.utcnow()
+    if _last_backup_time and (now - _last_backup_time).total_seconds() < MIN_BACKUP_INTERVAL_SECONDS:
+        return False
+    _last_backup_time = now
+    return True
+    return True
+
 def create_backup() -> str:
     """Copy the current database to a timestamped file, return the path."""
     os.makedirs(BACKUP_DIR, exist_ok=True)
