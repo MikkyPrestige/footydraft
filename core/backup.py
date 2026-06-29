@@ -63,12 +63,13 @@ def daily_backup():
     """Create and upload a database backup. Returns path, or None if locked."""
     global _last_backup_time
 
-    # File‑based lock to prevent concurrent backups
+    # Atomic file‑based lock (prevents concurrent backups)
     lockfile = os.path.join(BACKUP_DIR, "backup.lock")
-    if os.path.exists(lockfile):
+    try:
+        open(lockfile, "x").close()   # 'x' mode fails if file exists → atomic
+    except FileExistsError:
         print("Backup already in progress.")
         return None
-    open(lockfile, "w").close()
     try:
         # Enforce minimum interval
         now = datetime.utcnow()
