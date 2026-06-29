@@ -18,15 +18,7 @@ BACKUP_DIR = "data/backups"
 
 _last_backup_time: datetime | None = None
 MIN_BACKUP_INTERVAL_SECONDS = 60
-
-def is_backup_allowed() -> bool:
-    global _last_backup_time
-    now = datetime.utcnow()
-    if _last_backup_time and (now - _last_backup_time).total_seconds() < MIN_BACKUP_INTERVAL_SECONDS:
-        return False
-    _last_backup_time = now
-    return True
-    return True
+_backup_lock = False
 
 def create_backup() -> str:
     """Copy the current database to a timestamped file, return the path."""
@@ -65,17 +57,38 @@ def upload_to_dropbox(backup_path: str):
     print(f"Uploaded compressed backup to Dropbox: {dest_path}")
 
 def daily_backup():
-    """Create and upload a database backup to Dropbox, then also to Telegram."""
-    path = create_backup()
-    # Upload to Dropbox (primary)
-    if DROPBOX_REFRESH_TOKEN:
-        upload_to_dropbox(path)
-    # Also send to Telegram (secondary)
-    send_backup_to_telegram(path)
-    # Keep only last 7 local backups
-    all_backups = sorted([
-        os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
-    ], key=os.path.getmtime)
-    for old in all_backups[:-7]:
-        os.remove(old)
-    return path
+    """Create and upload a database backup. Returns path, or None if locked."""
+    global _backup_lock, _last_backup_time
+
+    # 1. Prevent concurrent backup
+    if _backup_lock:
+        print("Backup already in progress.")
+        return None
+    _backup_lock = True
+    try:
+        # 2. Enforce minimum interval
+        now = datetime.utcnow()
+        if _last_backup_time and (now - _last_backup_time).total_seconds() < MIN_BACKUP_INTERVAL_SECONDS:
+            raise RuntimeError("Backup too soon – please wait a minute.")
+        _last_backup_time = now
+
+        # 3. Create backup
+        path = create_backup()
+
+        # 4. Upload to Dropbox (primary)
+        if DROPBOX_REFRESH_TOKEN:
+            upload_to_dropbox(path)
+
+        # 5. Also send to Telegram (secondary)
+        send_backup_to_telegram(path)
+
+        # 6. Keep only last 7 local backups
+        all_backups = sorted([
+            os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
+        ], key=os.path.getmtime)
+        for old in all_backups[:-7]:
+            os.remove(old)
+
+        return path
+    finally:
+        _backup_lock = False

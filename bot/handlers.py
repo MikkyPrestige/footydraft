@@ -301,13 +301,15 @@ async def source_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def backup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    from core.backup import daily_backup, is_backup_allowed
-    if not is_backup_allowed():
-        await update.message.reply_text("⏳ Backup already taken recently. Please wait a minute.")
-        return
+    from core.backup import daily_backup
     try:
         path = daily_backup()
+        if path is None:
+            await update.message.reply_text("⏳ Backup already in progress. Please wait.")
+            return
         await update.message.reply_text(f"✅ Backup created and sent: {path}")
+    except RuntimeError as e:
+        await update.message.reply_text(f"⏳ {e}")
     except Exception as e:
         await update.message.reply_text(f"❌ Backup failed: {e}")
 
