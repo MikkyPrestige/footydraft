@@ -1,4 +1,4 @@
-"""Database backup: copies SQLite file and uploads to Dropbox + Telegram."""
+"""Database backup: copies SQLite file, compresses it for Dropbox, and uploads to Dropbox + Telegram."""
 import os
 import gzip
 import shutil
@@ -18,7 +18,7 @@ BACKUP_DIR = "data/backups"
 
 _last_backup_time: datetime | None = None
 MIN_BACKUP_INTERVAL_SECONDS = 60
-_backup_lock = False
+
 
 def create_backup() -> str:
     """Copy the current database to a timestamped file, return the path."""
@@ -29,6 +29,7 @@ def create_backup() -> str:
     shutil.copy2(DB_PATH, backup_path)
     return backup_path
 
+
 def send_backup_to_telegram(backup_path: str):
     """Send the backup file to the admin's Telegram chat."""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
@@ -38,6 +39,7 @@ def send_backup_to_telegram(backup_path: str):
         response = requests.post(url, files=files, data=data)
         if response.status_code != 200:
             raise RuntimeError(f"Failed to send backup to Telegram: {response.text}")
+
 
 def upload_to_dropbox(backup_path: str):
     """Compress the backup and upload to Dropbox (App folder)."""
@@ -56,39 +58,32 @@ def upload_to_dropbox(backup_path: str):
     os.remove(gz_path)  # cleanup local .gz after upload
     print(f"Uploaded compressed backup to Dropbox: {dest_path}")
 
+
 def daily_backup():
-    """Create and upload a database backup. Returns path, or None if locked."""
-    global _backup_lock, _last_backup_time
+    """Create and upload a database backup. Returns path."""
+    global _last_backup_time
 
-    # 1. Prevent concurrent backup
-    if _backup_lock:
-        print("Backup already in progress.")
-        return None
-    _backup_lock = True
-    try:
-        # 2. Enforce minimum interval
-        now = datetime.utcnow()
-        if _last_backup_time and (now - _last_backup_time).total_seconds() < MIN_BACKUP_INTERVAL_SECONDS:
-            raise RuntimeError("Backup too soon – please wait a minute.")
-        _last_backup_time = now
+    # Enforce minimum interval
+    now = datetime.utcnow()
+    if _last_backup_time and (now - _last_backup_time).total_seconds() < MIN_BACKUP_INTERVAL_SECONDS:
+        raise RuntimeError("Backup too soon – please wait a minute.")
+    _last_backup_time = now
 
-        # 3. Create backup
-        path = create_backup()
+    # Create backup
+    path = create_backup()
 
-        # 4. Upload to Dropbox (primary)
-        if DROPBOX_REFRESH_TOKEN:
-            upload_to_dropbox(path)
+    # Upload to Dropbox (primary)
+    if DROPBOX_REFRESH_TOKEN:
+        upload_to_dropbox(path)
 
-        # 5. Also send to Telegram (secondary)
-        send_backup_to_telegram(path)
+    # Also send to Telegram (secondary)
+    send_backup_to_telegram(path)
 
-        # 6. Keep only last 7 local backups
-        all_backups = sorted([
-            os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
-        ], key=os.path.getmtime)
-        for old in all_backups[:-7]:
-            os.remove(old)
+    # Keep only last 7 local backups
+    all_backups = sorted([
+        os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
+    ], key=os.path.getmtime)
+    for old in all_backups[:-7]:
+        os.remove(old)
 
-        return path
-    finally:
-        _backup_lock = False
+    return path

@@ -1,6 +1,7 @@
 """Telegram command handlers."""
 from datetime import datetime, timedelta
 from sqlalchemy import desc
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from core.database import SessionLocal
@@ -300,18 +301,21 @@ async def source_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f"{icon} {s.source_name} – last success: {s.last_success}\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
+_backup_lock = asyncio.Lock()
+
 async def backup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from core.backup import daily_backup
-    try:
-        path = daily_backup()
-        if path is None:
-            await update.message.reply_text("⏳ Backup already in progress. Please wait.")
-            return
-        await update.message.reply_text(f"✅ Backup created and sent: {path}")
-    except RuntimeError as e:
-        await update.message.reply_text(f"⏳ {e}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Backup failed: {e}")
+    async with _backup_lock:
+        try:
+            path = daily_backup()
+            if path is None:
+                await update.message.reply_text("⏳ Backup already in progress. Please wait.")
+                return
+            await update.message.reply_text(f"✅ Backup created and sent: {path}")
+        except RuntimeError as e:
+            await update.message.reply_text(f"⏳ {e}")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Backup failed: {e}")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
