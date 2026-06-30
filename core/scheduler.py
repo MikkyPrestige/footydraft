@@ -96,6 +96,10 @@ def job():
     try:
         asyncio.run(fetch_all_and_process())
         print("✅ Job completed.")
+        from core.classification.dedup import cleanup_memory_cache
+        cleanup_memory_cache()
+        import gc
+        gc.collect()
     except Exception as e:
         print(f"❌ Job failed: {e}")
 
