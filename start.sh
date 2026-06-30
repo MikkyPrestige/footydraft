@@ -11,6 +11,7 @@ SWAPFILE=/app/data/swapfile
 if [ ! -f "$SWAPFILE" ]; then
     fallocate -l 256M "$SWAPFILE"
     mkswap "$SWAPFILE"
+    chmod 0600 "$SWAPFILE"
 fi
 swapon "$SWAPFILE"
 
