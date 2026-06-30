@@ -1,5 +1,9 @@
 """Telegram bot entry point. Run with: python -m bot.main"""
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
+import sentry_sdk
+from config.settings import SENTRY_DSN
+sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
+
 from config.settings import TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, XQUIK_POSTING_ENABLED
 from bot.handlers import (
     clearqueue,

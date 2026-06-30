@@ -12,6 +12,9 @@ from core.ingestion.espn_fetcher import ESPNFetcher
 from core.generation.queue_manager import process_item
 from core.analytics.engine import run_weekly_analytics
 from core.backup import daily_backup as daily_backup_job
+import sentry_sdk
+from config.settings import SENTRY_DSN
+sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
 
 MAX_ITEMS_PER_SOURCE = 5
 MAX_LLM_CALLS_PER_CYCLE = 6

@@ -10,3 +10,4 @@ schedule
 pyyaml
 pytest
 dropbox
+sentry-sdk
