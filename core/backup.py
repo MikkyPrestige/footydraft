@@ -59,6 +59,39 @@ def upload_to_dropbox(backup_path: str):
     print(f"Uploaded compressed backup to Dropbox: {dest_path}")
 
 
+
+def cleanup_old_dropbox_backups():
+    """Delete Dropbox backup files older than 7 days (filename‑based)."""
+    import dropbox
+    dbx = dropbox.Dropbox(
+        oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+        app_key=DROPBOX_APP_KEY,
+        app_secret=DROPBOX_APP_SECRET,
+    )
+    now_date = datetime.utcnow().date()
+    try:
+        result = dbx.files_list_folder("/backups", recursive=False)
+        files = result.entries
+        while result.has_more:
+            result = dbx.files_list_folder_continue(result.cursor)
+            files.extend(result.entries)
+    except dropbox.exceptions.ApiError as e:
+        print(f"Dropbox cleanup list failed: {e}")
+        return
+
+    for entry in files:
+        fname = entry.name
+        if not fname.startswith("agent_backup_"):
+            continue
+        try:
+            date_str = fname.split("_")[2]
+            file_date = datetime.strptime(date_str, "%Y%m%d").date()
+            age_days = (now_date - file_date).days
+            if age_days > 7:
+                dbx.files_delete_v2(entry.path_lower)
+                print(f"Deleted old Dropbox backup: {fname} ({age_days} days old)")
+        except (IndexError, ValueError, dropbox.exceptions.ApiError) as e:
+            print(f"Dropbox cleanup error for {fname}: {e}")
 def daily_backup():
     """Create and upload a database backup. Returns path, or None if locked."""
     global _last_backup_time
@@ -83,16 +116,29 @@ def daily_backup():
         # Upload to Dropbox (primary)
         if DROPBOX_REFRESH_TOKEN:
             upload_to_dropbox(path)
+            cleanup_old_dropbox_backups()
 
         # Also send to Telegram (secondary)
         send_backup_to_telegram(path)
 
-        # Keep only last 7 local backups
-        all_backups = sorted([
-            os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
-        ], key=os.path.getmtime)
-        for old in all_backups[:-7]:
-            os.remove(old)
+        # Remove local backups older than 7 days (filename‑based)
+        now_date = datetime.utcnow().date()
+        for fname in os.listdir(BACKUP_DIR):
+            fpath = os.path.join(BACKUP_DIR, fname)
+            if not os.path.isfile(fpath):
+                continue
+            # Expect filenames like agent_backup_20260629_205125.db or .db.gz
+            if not fname.startswith("agent_backup_"):
+                continue
+            try:
+                date_str = fname.split("_")[2]  # YYYYMMDD
+                file_date = datetime.strptime(date_str, "%Y%m%d").date()
+                age_days = (now_date - file_date).days
+                if age_days > 7:
+                    os.remove(fpath)
+                    print(f"Removed old local backup: {fname} ({age_days} days old)")
+            except (IndexError, ValueError):
+                continue
 
         return path
     finally:
