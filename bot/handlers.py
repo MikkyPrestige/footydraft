@@ -545,3 +545,7 @@ async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(msg, reply_markup=keyboard)
 
+
+async def sentry_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Temporary: raise an error to verify Sentry."""
+    raise RuntimeError("Sentry test error – please ignore")
