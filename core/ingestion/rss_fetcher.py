@@ -19,15 +19,19 @@ FEEDS = {
 }
 
 class RSSFetcher(BaseFetcher):
-    def __init__(self, feeds: dict = None):
+    def __init__(self, feeds: dict = None, max_entries: int = None):
         self.feeds = feeds or FEEDS
+        self.max_entries = max_entries
 
     async def fetch(self) -> List[NewsItem]:
         items = []
         for source_name, url in self.feeds.items():
             try:
                 feed = await asyncio.to_thread(feedparser.parse, url)
-                for entry in feed.entries:
+                entries = feed.entries
+                if self.max_entries is not None:
+                    entries = entries[:self.max_entries]
+                for entry in entries:
                     if not hasattr(entry, 'published_parsed') or not entry.published_parsed:
                         continue
                     published = datetime(*entry.published_parsed[:6])

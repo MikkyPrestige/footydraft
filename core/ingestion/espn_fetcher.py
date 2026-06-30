@@ -22,12 +22,17 @@ SCOREBOARD_URLS = [
 LIVE_STATES = {"in"}
 
 class ESPNFetcher(BaseFetcher):
+    def __init__(self, max_entries: int = None):
+        self.max_entries = max_entries
+
     async def fetch(self) -> List[NewsItem]:
         items = []
         try:
             for scoreboard_url in SCOREBOARD_URLS:
                 data = await asyncio.to_thread(self._get_json, scoreboard_url)
                 events = data.get("events", [])
+                if self.max_entries is not None:
+                    events = events[:self.max_entries]
 
                 for event in events:
                     status = event.get("status", {}).get("type", {})

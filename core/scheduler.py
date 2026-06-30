@@ -55,12 +55,12 @@ def is_relevant(item) -> bool:
 
 async def fetch_all_and_process():
     fetchers = [
-        ("RSS", RSSFetcher()),
-        ("Reddit", RedditFetcher()),
-        ("Google News", GoogleNewsFetcher()),
-        ("Google Stats", GoogleNewsFetcher(search_query="football statistics OR xG OR expected goals OR progressive passes OR shot map OR heat map OR big chances OR passing accuracy OR tackles OR interceptions")),
-        ("API-Football", APIFootballFetcher()),
-        ("ESPN", ESPNFetcher()),
+        ("RSS", RSSFetcher(max_entries=100)),
+        ("Reddit", RedditFetcher(max_entries=100)),
+        ("Google News", GoogleNewsFetcher(max_entries=100)),
+        ("Google Stats", GoogleNewsFetcher(search_query="football statistics OR xG OR expected goals OR progressive passes OR shot map OR heat map OR big chances OR passing accuracy OR tackles OR interceptions", max_entries=100)),
+        ("API-Football", APIFootballFetcher(max_entries=100)),
+        ("ESPN", ESPNFetcher(max_entries=100)),
     ]
     llm_calls = 0
     now = datetime.utcnow()

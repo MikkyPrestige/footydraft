@@ -34,8 +34,9 @@ LEAGUE_IDS_SET = set(LEAGUE_IDS)
 LIVE_STATUSES = {"1H", "HT", "2H", "LIVE", "FT"}
 
 class APIFootballFetcher(BaseFetcher):
-    def __init__(self, match_date: Optional[str] = None):
+    def __init__(self, match_date: Optional[str] = None, max_entries: int = None):
         self.match_date = match_date
+        self.max_entries = max_entries
 
     async def fetch(self) -> List[NewsItem]:
         items = []
@@ -74,6 +75,9 @@ class APIFootballFetcher(BaseFetcher):
                 status = fix["fixture"]["status"]["short"]
                 if league_id in LEAGUE_IDS_SET and status in LIVE_STATUSES:
                     merged.append(fix)
+
+            if self.max_entries is not None:
+                merged = merged[:self.max_entries]
 
             for fixture in merged:
                 fixture_id = fixture["fixture"]["id"]

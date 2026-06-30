@@ -10,6 +10,9 @@ REDDIT_URL = f"https://www.reddit.com/r/{SUBREDDIT}/new.json"
 HEADERS = {"User-Agent": "football-agent v1.0 (anonymized)"}
 
 class RedditFetcher(BaseFetcher):
+    def __init__(self, max_entries: int = None):
+        self.max_entries = max_entries
+
     async def fetch(self) -> List[NewsItem]:
         items = []
         try:
@@ -19,7 +22,10 @@ class RedditFetcher(BaseFetcher):
                 resp.raise_for_status()
                 return resp.json()
             data = await asyncio.to_thread(get_json)
-            for child in data.get("data", {}).get("children", []):
+            children = data.get("data", {}).get("children", [])
+            if self.max_entries is not None:
+                children = children[:self.max_entries]
+            for child in children:
                 post = child["data"]
                 items.append(NewsItem(
                     title=post["title"],
