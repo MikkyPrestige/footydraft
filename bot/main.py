@@ -11,7 +11,7 @@ from bot.handlers import (
     hold_draft,
     release_draft,
     start, queue_callback, stats, rules, addrule, source_status,
-    posted, postx, metrics, button_handler, livecheck, tweets_cmd, impressions_cmd, sentry_test,
+    posted, postx, metrics, button_handler, livecheck, tweets_cmd, impressions_cmd,
 )
 
 async def push_live_drafts(context):
@@ -67,7 +67,6 @@ def main():
     app.add_handler(CommandHandler("tweets", tweets_cmd))
     app.add_handler(CommandHandler("impressions", impressions_cmd))
     app.add_handler(CommandHandler("clearqueue", clearqueue))
-    app.add_handler(CommandHandler("sentry_test", sentry_test))
     app.add_handler(CallbackQueryHandler(button_handler))
 
     # Live-draft push job (every 20 seconds, first run after 5 seconds)

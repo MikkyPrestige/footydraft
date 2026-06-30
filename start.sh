@@ -6,6 +6,14 @@ echo "Starting Football Twitter Agent..."
 # Remove stale backup lock file (if any)
 rm -f /app/data/backups/backup.lock
 
+# Enable swap (256MB) to prevent OOM kills
+SWAPFILE=/app/data/swapfile
+if [ ! -f "$SWAPFILE" ]; then
+    fallocate -l 256M "$SWAPFILE"
+    mkswap "$SWAPFILE"
+fi
+swapon "$SWAPFILE"
+
 # Only clear old event cache > 24h, keep drafts intact
 python -c "
 from core.database import SessionLocal
@@ -21,14 +29,6 @@ print('Stale event cache cleared')
 # Initialize database (creates tables if missing)
 python -c "from core.database import init_db; init_db(); print('Database ready')"
 
-# Quick Sentry verification (prints success/failure to logs)
-python -c "
-from config.settings import SENTRY_DSN
-import sentry_sdk
-sentry_sdk.init(dsn=SENTRY_DSN)
-sentry_sdk.capture_exception(Exception('Startup Sentry test'))
-print('Sentry test sent')
-"
 
 # Startup backup (also runs cleanup)
 python -c "
