@@ -11,8 +11,8 @@ SWAPFILE=/app/data/swapfile
 if [ ! -f "$SWAPFILE" ]; then
     fallocate -l 256M "$SWAPFILE"
     mkswap "$SWAPFILE"
-    chmod 0600 "$SWAPFILE"
 fi
+chmod 0600 "$SWAPFILE"
 swapon "$SWAPFILE"
 
 # Only clear old event cache > 24h, keep drafts intact
