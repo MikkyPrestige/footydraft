@@ -20,7 +20,22 @@ print('Stale event cache cleared')
 
 # Initialize database (creates tables if missing)
 python -c "from core.database import init_db; init_db(); print('Database ready')"
-python -c "from core.backup import daily_backup; daily_backup(); print(\"Startup backup created\")"
+
+# Quick Sentry verification (prints success/failure to logs)
+python -c "
+from config.settings import SENTRY_DSN
+import sentry_sdk
+sentry_sdk.init(dsn=SENTRY_DSN)
+sentry_sdk.capture_exception(Exception('Startup Sentry test'))
+print('Sentry test sent')
+"
+
+# Startup backup (also runs cleanup)
+python -c "
+from core.backup import daily_backup
+daily_backup()
+print('Startup backup created')
+"
 
 # Start scheduler in background
 python -m core.scheduler &
