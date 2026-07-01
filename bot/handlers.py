@@ -688,3 +688,48 @@ async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ Restore failed: {e}")
     else:
         await update.message.reply_text("❌ Invalid restore code.")
+
+_restart_expiry = None
+
+async def restart_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Two‑step restart: /restart then /restart confirm within 60s."""
+    global _restart_expiry
+    from datetime import datetime as dt
+    if not context.args:
+        _restart_expiry = dt.utcnow() + timedelta(seconds=60)
+        await update.message.reply_text(
+            "⚠️ Are you sure you want to restart the bot?\n"
+            "This will interrupt all operations for about a minute.\n"
+            "Use `/restart confirm` within the next 60 seconds to proceed."
+        )
+        return
+
+    arg = context.args[0].lower()
+    if arg == "confirm":
+        if _restart_expiry is None or dt.utcnow() > _restart_expiry:
+            _restart_expiry = None
+            await update.message.reply_text("Restart request expired. Use /restart to try again.")
+            return
+        _restart_expiry = None
+        await update.message.reply_text("🔄 Restarting machine…")
+        try:
+            import os, requests
+            fly_token = os.getenv("FLY_API_TOKEN")
+            app_name = os.getenv("FLY_APP_NAME")
+            machine_id = os.getenv("FLY_MACHINE_ID")
+            if not fly_token or not app_name or not machine_id:
+                await update.message.reply_text("❌ Missing Fly environment variables.")
+                return
+            resp = requests.post(
+                f"https://api.machines.dev/v1/apps/{app_name}/machines/{machine_id}/restart",
+                headers={"Authorization": f"Bearer {fly_token}"},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                await update.message.reply_text("✅ Machine is restarting. The bot will be back in a moment.")
+            else:
+                await update.message.reply_text(f"❌ Fly API returned {resp.status_code}: {resp.text}")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Restart failed: {e}")
+    else:
+        await update.message.reply_text("Usage: /restart confirm")
