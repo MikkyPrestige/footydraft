@@ -654,6 +654,37 @@ async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await update.message.reply_text(f"❌ Failed to list backups: {e}")
 
-    # Any other argument (non‑6‑digit, non‑filename) → invalid
+    # arg is not 6 digits → either a filename or invalid
+    elif _restore_files:
+        filename = arg
+        # verify filename exists in the list
+        match = next((b for b in _restore_files if b["name"] == filename), None)
+        if not match:
+            await update.message.reply_text("❌ Invalid filename. Use the exact name from the list.")
+            return
+
+        await update.message.reply_text("⏳ Restoring backup…")
+        try:
+            import dropbox, gzip, os
+            from config.settings import DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_REFRESH_TOKEN, DATABASE_URL
+            dbx = dropbox.Dropbox(
+                oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+                app_key=DROPBOX_APP_KEY,
+                app_secret=DROPBOX_APP_SECRET,
+            )
+            # download the .db.gz
+            gz_path = f"/tmp/{filename}"
+            dbx.files_download_to_file(gz_path, f"/backups/{filename}")
+            # decompress to temporary .db
+            db_tmp = f"/tmp/{filename[:-3]}"  # remove .gz
+            with gzip.open(gz_path, "rb") as f_in, open(db_tmp, "wb") as f_out:
+                f_out.write(f_in.read())
+            # atomically replace live database
+            db_live = DATABASE_URL.replace("sqlite:///", "")
+            os.replace(db_tmp, db_live)
+            _restore_files = None
+            await update.message.reply_text("✅ Database restored. Restart the bot to apply changes.")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Restore failed: {e}")
     else:
         await update.message.reply_text("❌ Invalid restore code.")
