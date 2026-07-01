@@ -57,8 +57,7 @@ def main():
     app.add_handler(CommandHandler("hold", hold_draft))
     app.add_handler(CommandHandler("release", release_draft))
     app.add_handler(CommandHandler("posted", posted))
-    if XQUIK_POSTING_ENABLED:
-        app.add_handler(CommandHandler("postx", postx))
+    app.add_handler(CommandHandler("postx", postx))
     app.add_handler(CommandHandler("metrics", metrics))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("rules", rules))

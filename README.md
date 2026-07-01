@@ -144,7 +144,7 @@ python -m bot.main
 - `/clearqueue` – delete all pending drafts (or only `normal` / `live`)
 - `/uptime` – bot uptime and start time (WAT)
 - `/restore` – gated database restore from Dropbox backups
-- `/restart` – restart the Fly.io machine (two‑step confirmation)
+- `/restart` – Restart the bot (two-step confirmation)
 
 ---
 

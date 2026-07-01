@@ -1,3 +1,4 @@
+from config.settings import XQUIK_POSTING_ENABLED
 """Telegram command handlers."""
 from datetime import datetime, timedelta
 from sqlalchemy import desc
@@ -34,9 +35,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/rules - View / approve style rules\n"
         "/addrule <text> - Add a manual rule\n"
         "/source_status - Check news source health\n"
-        "/backup - Backup database to Telegram\n"
         "/livecheck - Force check for live matches\n"
-        "/clearqueue - Delete all pending normal drafts"
+        "/clearqueue - Delete all pending normal drafts\n"
+        "/uptime - Bot uptime and start time (WAT)\n"
+        "/restore - Gated database restore from Dropbox backups\n"
+        "/restart - Restart the bot (two-step confirmation)\n"
     )
 
 async def queue_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -130,6 +133,9 @@ async def posted(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def postx(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not XQUIK_POSTING_ENABLED:
+        await update.message.reply_text("❌ Xquik posting is not enabled. Set XQUIK_POSTING_ENABLED=1 to use this feature.")
+        return
     if not context.args:
         await update.message.reply_text("Usage: /postx <draft_id> [variant]")
         return
@@ -718,7 +724,7 @@ async def restart_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             app_name = os.getenv("FLY_APP_NAME")
             machine_id = os.getenv("FLY_MACHINE_ID")
             if not fly_token or not app_name or not machine_id:
-                await update.message.reply_text("❌ Missing Fly environment variables.")
+                await update.message.reply_text("❌ Missing required environment variables.")
                 return
             resp = requests.post(
                 f"https://api.machines.dev/v1/apps/{app_name}/machines/{machine_id}/restart",
