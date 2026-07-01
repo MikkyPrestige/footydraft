@@ -579,3 +579,43 @@ async def uptime_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⏱️ Bot uptime: {elapsed}\n"
         f"🟢 Started at: {started}"
     )
+
+# Restore state: one‑time code and expiry
+_restore_code = None
+_restore_expiry = None
+
+async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gated database restore: step 1 generates a code, step 2 lists backups, step 3 restores."""
+    global _restore_code, _restore_expiry
+    from datetime import datetime as dt
+    # Step 1 – generate a one‑time code
+    if not context.args:
+        import random, string
+        _restore_code = ''.join(random.choices(string.digits, k=6))
+        _restore_expiry = dt.utcnow() + timedelta(minutes=5)
+        await update.message.reply_text(
+            f"🔐 Restore code: {_restore_code}\n"
+            f"⏳ Expires in 5 minutes.\n"
+            f"Use `/restore {_restore_code}` to continue."
+        )
+        return
+
+    arg = context.args[0]
+    # Step 2 – verify the code
+    if arg.isdigit() and len(arg) == 6:
+        if _restore_code is None or arg != _restore_code:
+            await update.message.reply_text("❌ Invalid restore code.")
+            return
+        if dt.utcnow() > _restore_expiry:
+            _restore_code = None
+            _restore_expiry = None
+            await update.message.reply_text("⏳ Code expired. Use /restore to generate a new one.")
+            return
+        # Code accepted – list backups
+        _restore_code = None
+        _restore_expiry = None
+        await update.message.reply_text("✅ Code accepted. Listing backups… (not yet implemented)")
+        return
+
+    # Step 3 – assume it's a filename → restore
+    await update.message.reply_text("Restore not yet implemented.")

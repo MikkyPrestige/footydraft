@@ -12,7 +12,7 @@ from bot.handlers import (
     hold_draft,
     release_draft,
     start, queue_callback, stats, rules, addrule, source_status,
-    posted, postx, metrics, button_handler, livecheck, tweets_cmd, impressions_cmd, uptime_cmd, set_bot_start_time
+    posted, postx, metrics, button_handler, livecheck, tweets_cmd, impressions_cmd, uptime_cmd, set_bot_start_time, restore_cmd
 )
 
 async def push_live_drafts(context):
@@ -72,6 +72,7 @@ def main():
 
     # Live-draft push job (every 20 seconds, first run after 5 seconds)
     app.add_handler(CommandHandler("uptime", uptime_cmd))
+    app.add_handler(CommandHandler("restore", restore_cmd))
     app.job_queue.run_repeating(push_live_drafts, interval=20, first=5)
 
     print("Bot polling...")
