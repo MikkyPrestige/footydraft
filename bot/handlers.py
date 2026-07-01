@@ -9,6 +9,13 @@ from core.models import Draft, Tweet, Rule, SourceHealth
 from core.publishing.xquik import XquikPublishError, publish_tweet
 from bot.keyboard import copy_buttons
 
+_start_time = None
+
+def set_bot_start_time(t):
+    global _start_time
+    _start_time = t
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "⚽ Welcome to your Football Twitter Agent!\n\n"
@@ -546,3 +553,27 @@ async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(msg, reply_markup=keyboard)
 
 
+
+async def uptime_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show bot start time and elapsed uptime."""
+    from datetime import datetime
+    global _start_time
+    if _start_time is None:
+        await update.message.reply_text("Uptime not available yet.")
+        return
+    now = datetime.utcnow()
+    delta = now - _start_time
+    days = delta.days
+    hours, remainder = divmod(delta.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    parts = []
+    if days: parts.append(f"{days}d")
+    if hours: parts.append(f"{hours}h")
+    if minutes: parts.append(f"{minutes}m")
+    parts.append(f"{seconds}s")
+    elapsed = " ".join(parts)
+    started = _start_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+    await update.message.reply_text(
+        f"⏱️ Bot uptime: {elapsed}\n"
+        f"🟢 Started at: {started}"
+    )

@@ -4,6 +4,7 @@ import sentry_sdk
 from config.settings import SENTRY_DSN
 sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
 
+from datetime import datetime
 from config.settings import TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, XQUIK_POSTING_ENABLED
 from bot.handlers import (
     clearqueue,
@@ -11,7 +12,7 @@ from bot.handlers import (
     hold_draft,
     release_draft,
     start, queue_callback, stats, rules, addrule, source_status,
-    posted, postx, metrics, button_handler, livecheck, tweets_cmd, impressions_cmd,
+    posted, postx, metrics, button_handler, livecheck, tweets_cmd, impressions_cmd, uptime_cmd, set_bot_start_time
 )
 
 async def push_live_drafts(context):
@@ -70,9 +71,11 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
 
     # Live-draft push job (every 20 seconds, first run after 5 seconds)
+    app.add_handler(CommandHandler("uptime", uptime_cmd))
     app.job_queue.run_repeating(push_live_drafts, interval=20, first=5)
 
     print("Bot polling...")
+    set_bot_start_time(datetime.utcnow())
     app.run_polling()
 
 if __name__ == "__main__":
