@@ -15,6 +15,13 @@ fi
 chmod 0600 "$SWAPFILE"
 swapon "$SWAPFILE"
 
+# Apply staged database restore if present
+if [ -f "data/agent_restored.db" ]; then
+    echo "Applying restored database..."
+    mv -f data/agent_restored.db data/agent.db
+    echo "Restored database applied."
+fi
+
 # Only clear old event cache > 24h, keep drafts intact
 python -c "
 from core.database import SessionLocal

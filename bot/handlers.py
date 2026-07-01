@@ -666,24 +666,24 @@ async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⏳ Restoring backup…")
         try:
             import dropbox, gzip, os
-            from config.settings import DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_REFRESH_TOKEN, DATABASE_URL
+            from config.settings import DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_REFRESH_TOKEN
             dbx = dropbox.Dropbox(
                 oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
                 app_key=DROPBOX_APP_KEY,
                 app_secret=DROPBOX_APP_SECRET,
             )
-            # download the .db.gz
-            gz_path = f"/tmp/{filename}"
+            # Download .db.gz and decompress directly on the persistent volume
+            gz_path = "data/agent_restored.db.gz"
             dbx.files_download_to_file(gz_path, f"/backups/{filename}")
-            # decompress to temporary .db
-            db_tmp = f"/tmp/{filename[:-3]}"  # remove .gz
-            with gzip.open(gz_path, "rb") as f_in, open(db_tmp, "wb") as f_out:
+            restored_db = "data/agent_restored.db"
+            with gzip.open(gz_path, "rb") as f_in, open(restored_db, "wb") as f_out:
                 f_out.write(f_in.read())
-            # atomically replace live database
-            db_live = DATABASE_URL.replace("sqlite:///", "")
-            os.replace(db_tmp, db_live)
+            os.remove(gz_path)  # clean up .gz after decompress
             _restore_files = None
-            await update.message.reply_text("✅ Database restored. Restart the bot to apply changes.")
+            await update.message.reply_text(
+                "✅ Restored database staged. "
+                "Restart the bot to apply changes."
+            )
         except Exception as e:
             await update.message.reply_text(f"❌ Restore failed: {e}")
     else:
