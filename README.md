@@ -17,6 +17,8 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 - **Automatic database backups** – compressed backup on every boot and nightly at 3 AM UTC (Dropbox primary, Telegram secondary)
 - **Real‑time error tracking** – Sentry integration to monitor crashes and bugs
 - **Built‑in uptime monitor** – `/uptime` command shows how long the bot has been running (WAT)
+- **Gated database restore** – `/restore` command with one‑time code, backup file picker, and automatic staging
+- **Safe remote restart** – `/restart` with two‑step confirmation, no computer needed
 - **Weekly analytics** that suggest style improvements based on your best‑performing tweets
 - **Deduplication & age filters** to avoid stale or repeated content
 - **Deployable 24/7** on Fly.io (or any Docker‑compatible platform)
@@ -34,6 +36,7 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 7. **Analytics Engine** runs weekly, identifies patterns in your engagement data, and suggests natural‑language rules you can approve or reject.
 8. **Backup Engine** – automatically creates a gzipped database backup on every machine restart and daily at 3 AM UTC, uploading to Dropbox (primary) and Telegram (secondary).
 9. **Monitoring** – the `/uptime` command shows the bot’s start time and elapsed uptime; Sentry integration tracks errors in real time.
+10. **Recovery** – the `/restore` command uses a gated one‑time code to list the last 5 backups from Dropbox, then stages the selected backup; a `/restart` reboot applies it automatically.
 
 ---
 
@@ -139,7 +142,9 @@ python -m bot.main
 - `/source_status` – health of news sources
 - `/livecheck` – force check for live matches
 - `/clearqueue` – delete all pending drafts (or only `normal` / `live`)
-- - `/uptime` – bot uptime and start time (WAT)
+- `/uptime` – bot uptime and start time (WAT)
+- `/restore` – gated database restore from Dropbox backups
+- `/restart` – restart the Fly.io machine (two‑step confirmation)
 
 ---
 
@@ -190,6 +195,7 @@ All important settings are in `config/settings.py` and can be overridden with en
 | `DROPBOX_APP_SECRET` | – | Dropbox app secret |
 | `DROPBOX_REFRESH_TOKEN` | – | Dropbox refresh token (never expires) |
 | `SENTRY_DSN` | – | Sentry DSN for error tracking |
+| `FLY_API_TOKEN` | – | Fly.io org token (required for `/restart`) |
 
 ---
 
