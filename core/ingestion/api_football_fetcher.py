@@ -10,6 +10,7 @@ BASE_URL = "https://v3.football.api-sports.io"
 HEADERS = {"x-apisports-key": API_FOOTBALL_KEY}
 
 LEAGUE_IDS = [
+    1,    # FIFA World Cup
     39,    # Premier League
     528,   # Community Shield
     45,    # FA Cup
