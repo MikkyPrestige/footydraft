@@ -15,6 +15,8 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 - **Manual feedback loop** - enter tweet engagement metrics without the X API
 - **Optional Xquik posting** - publish approved drafts only when `XQUIK_POSTING_ENABLED=1`
 - **Automatic database backups** – compressed backup on every boot and nightly at 3 AM UTC (Dropbox primary, Telegram secondary)
+- **Real‑time error tracking** – Sentry integration to monitor crashes and bugs
+- **Built‑in uptime monitor** – `/uptime` command shows how long the bot has been running (WAT)
 - **Weekly analytics** that suggest style improvements based on your best‑performing tweets
 - **Deduplication & age filters** to avoid stale or repeated content
 - **Deployable 24/7** on Fly.io (or any Docker‑compatible platform)
@@ -31,6 +33,7 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 6. **Telegram Bot** shows pending drafts in a queue with inline “Copy” buttons, optional `/postx` publishing, and instant live‑event drafts.
 7. **Analytics Engine** runs weekly, identifies patterns in your engagement data, and suggests natural‑language rules you can approve or reject.
 8. **Backup Engine** – automatically creates a gzipped database backup on every machine restart and daily at 3 AM UTC, uploading to Dropbox (primary) and Telegram (secondary).
+9. **Monitoring** – the `/uptime` command shows the bot’s start time and elapsed uptime; Sentry integration tracks errors in real time.
 
 ---
 
@@ -136,6 +139,7 @@ python -m bot.main
 - `/source_status` – health of news sources
 - `/livecheck` – force check for live matches
 - `/clearqueue` – delete all pending drafts (or only `normal` / `live`)
+- - `/uptime` – bot uptime and start time (WAT)
 
 ---
 
@@ -182,6 +186,10 @@ All important settings are in `config/settings.py` and can be overridden with en
 | `NORMAL_DAILY_CAP` | 5 | Max normal tweets posted per day |
 | `LIVE_MATCH_HOURLY_CAP` | 10 | Max live tweets per match hour |
 | `MAX_ITEM_AGE_HOURS` | 12 | Discard news older than this |
+| `DROPBOX_APP_KEY` | – | Dropbox app key for automatic backups |
+| `DROPBOX_APP_SECRET` | – | Dropbox app secret |
+| `DROPBOX_REFRESH_TOKEN` | – | Dropbox refresh token (never expires) |
+| `SENTRY_DSN` | – | Sentry DSN for error tracking |
 
 ---
 
