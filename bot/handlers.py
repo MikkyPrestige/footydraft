@@ -583,6 +583,7 @@ async def uptime_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Restore state: one‑time code and expiry
 _restore_code = None
 _restore_expiry = None
+_restore_files = None
 
 async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gated database restore: step 1 generates a code, step 2 lists backups, step 3 restores."""
@@ -601,7 +602,7 @@ async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     arg = context.args[0]
-    # Step 2 – verify the code
+    # If the argument is exactly 6 digits → code verification
     if arg.isdigit() and len(arg) == 6:
         if _restore_code is None or arg != _restore_code:
             await update.message.reply_text("❌ Invalid restore code.")
@@ -611,11 +612,48 @@ async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _restore_expiry = None
             await update.message.reply_text("⏳ Code expired. Use /restore to generate a new one.")
             return
-        # Code accepted – list backups
+        # Code accepted – mark as used
         _restore_code = None
         _restore_expiry = None
-        await update.message.reply_text("✅ Code accepted. Listing backups… (not yet implemented)")
-        return
+        try:
+            import dropbox
+            from config.settings import DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_REFRESH_TOKEN
+            dbx = dropbox.Dropbox(
+                oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+                app_key=DROPBOX_APP_KEY,
+                app_secret=DROPBOX_APP_SECRET,
+            )
+            result = dbx.files_list_folder("/backups", recursive=False)
+            files = result.entries
+            while result.has_more:
+                result = dbx.files_list_folder_continue(result.cursor)
+                files.extend(result.entries)
+            # keep only .db.gz files, extract date from name
+            backups = []
+            for entry in files:
+                if entry.name.startswith("agent_backup_") and entry.name.endswith(".db.gz"):
+                    try:
+                        date_str = entry.name.split("_")[2]
+                        file_date = dt.strptime(date_str, "%Y%m%d").date()
+                        backups.append({"name": entry.name, "date": file_date})
+                    except (IndexError, ValueError):
+                        continue
+            if not backups:
+                await update.message.reply_text("ℹ️ No backup files found in Dropbox.")
+                return
+            # sort newest first, take last 5
+            backups.sort(key=lambda x: x["date"], reverse=True)
+            latest = backups[:5]
+            global _restore_files
+            _restore_files = latest
+            msg = "📁 **Last 5 backups:**\n"
+            for i, b in enumerate(latest, 1):
+                msg += f"{i}. `{b['name']}` – {b['date'].strftime('%d %b %Y')}\n"
+            msg += "\nUse `/restore <filename>` to restore one."
+            await update.message.reply_text(msg, parse_mode="Markdown")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Failed to list backups: {e}")
 
-    # Step 3 – assume it's a filename → restore
+    # Otherwise, treat arg as a filename → restore (Step 3)
+    # TODO: Step 3 – download and restore the selected backup
     await update.message.reply_text("Restore not yet implemented.")
