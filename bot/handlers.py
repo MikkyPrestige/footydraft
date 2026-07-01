@@ -654,6 +654,6 @@ async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await update.message.reply_text(f"❌ Failed to list backups: {e}")
 
-    # Otherwise, treat arg as a filename → restore (Step 3)
-    # TODO: Step 3 – download and restore the selected backup
-    await update.message.reply_text("Restore not yet implemented.")
+    # Any other argument (non‑6‑digit, non‑filename) → invalid
+    else:
+        await update.message.reply_text("❌ Invalid restore code.")
