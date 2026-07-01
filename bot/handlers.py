@@ -572,7 +572,9 @@ async def uptime_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if minutes: parts.append(f"{minutes}m")
     parts.append(f"{seconds}s")
     elapsed = " ".join(parts)
-    started = _start_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+    from datetime import timedelta
+    wat = _start_time + timedelta(hours=1)
+    started = wat.strftime("%Y-%m-%d %H:%M:%S WAT")
     await update.message.reply_text(
         f"⏱️ Bot uptime: {elapsed}\n"
         f"🟢 Started at: {started}"
