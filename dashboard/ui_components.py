@@ -280,22 +280,29 @@ def render_sidebar():
 
         st.divider()
 
-        # --- Xquik Toggle (THIRD - last) ---
-        st.subheader("Xquik Posting")
+        # --- Xquik Toggle ---
+st.subheader("Xquik Posting")
 
-        if XQUIK_POSTING_ENABLED:
-            st.success(":material/check_circle: Xquik is enabled")
-            if st.button("Disable Xquik", key="disable_xquik"):
-                try:
-                    toggle_xquik_and_restart(False)
-                    st.success("Xquik disabled. The bot will restart.")
-                except Exception as e:
-                    st.error(f"Failed: {e}")
-        else:
-            st.info(":material/radio_button_unchecked: Xquik is disabled")
-            if st.button("Enable Xquik", key="enable_xquik"):
-                try:
-                    toggle_xquik_and_restart(True)
-                    st.success("Xquik enabled. The bot will restart.")
-                except Exception as e:
-                    st.error(f"Failed: {e}")
+# Initialize session state for Xquik
+if "xquik_enabled" not in st.session_state:
+    st.session_state.xquik_enabled = XQUIK_POSTING_ENABLED
+
+# Display current state
+if st.session_state.xquik_enabled:
+    st.success(":material/check_circle: Xquik is enabled")
+    if st.button("Disable Xquik", key="disable_xquik"):
+        try:
+            toggle_xquik_and_restart(False)
+            st.session_state.xquik_enabled = False
+            st.rerun()
+        except Exception as e:
+            st.error(f"Failed: {e}")
+else:
+    st.info(":material/radio_button_unchecked: Xquik is disabled")
+    if st.button("Enable Xquik", key="enable_xquik"):
+        try:
+            toggle_xquik_and_restart(True)
+            st.session_state.xquik_enabled = True
+            st.rerun()
+        except Exception as e:
+            st.error(f"Failed: {e}")

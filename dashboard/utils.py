@@ -177,36 +177,26 @@ def toggle_xquik_and_restart(enable: bool):
     import requests
     from config.settings import FLY_API_TOKEN, FLY_APP_NAME, FLY_MACHINE_ID
 
-    # Debug: check if values are loaded
-    print(f"FLY_API_TOKEN: {FLY_API_TOKEN[:10] if FLY_API_TOKEN else 'NOT SET'}...")
-    print(f"FLY_APP_NAME: {FLY_APP_NAME}")
-    print(f"FLY_MACHINE_ID: {FLY_MACHINE_ID}")
+    if not FLY_API_TOKEN or not FLY_APP_NAME or not FLY_MACHINE_ID:
+        raise ValueError("Fly.io credentials not set in environment variables")
 
     new_value = "1" if enable else "0"
-    # 1) Set the secret via Fly GraphQL API
-    query = """
-    mutation($appName: String!, $secrets: [SecretInput!]!) {
-      setSecrets(appName: $appName, secrets: $secrets) {
-        app { name }
-      }
-    }
-    """
-    variables = {
-        "appName": FLY_APP_NAME,
-        "secrets": [{"key": "XQUIK_POSTING_ENABLED", "value": new_value}],
-    }
+
+    # 1) Set the secret via Fly REST API (no GraphQL)
+    secrets_url = f"https://api.machines.dev/v1/apps/{FLY_APP_NAME}/secrets"
     resp = requests.post(
-        "https://api.fly.io/graphql",
-        json={"query": query, "variables": variables},
+        secrets_url,
+        json={"secrets": [{"key": "XQUIK_POSTING_ENABLED", "value": new_value}]},
         headers={"Authorization": f"Bearer {FLY_API_TOKEN}"},
         timeout=15,
     )
-    if resp.status_code != 200:
-        raise RuntimeError(f"Failed to set secret: {resp.text}")
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(f"Failed to set secret (status {resp.status_code}): {resp.text}")
 
     # 2) Restart the machine so the new secret takes effect
+    restart_url = f"https://api.machines.dev/v1/apps/{FLY_APP_NAME}/machines/{FLY_MACHINE_ID}/restart"
     resp2 = requests.post(
-        f"https://api.machines.dev/v1/apps/{FLY_APP_NAME}/machines/{FLY_MACHINE_ID}/restart",
+        restart_url,
         headers={"Authorization": f"Bearer {FLY_API_TOKEN}"},
         timeout=10,
     )
