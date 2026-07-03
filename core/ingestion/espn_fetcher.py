@@ -93,9 +93,16 @@ class ESPNFetcher(BaseFetcher):
                     except Exception:
                         pass
 
-            record_success("ESPN")
+    # Only record if source_health table exists
+            try:
+                record_success("ESPN")
+            except Exception:
+                pass  # Table doesn't exist yet — safe to ignore
         except Exception as e:
-            record_failure("ESPN")
+            try:
+                record_failure("ESPN")
+            except Exception:
+                pass  # Table doesn't exist yet — safe to ignore
             print(f"ESPN fetch failed: {e}")
         return items
 
