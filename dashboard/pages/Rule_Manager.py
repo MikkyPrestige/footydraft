@@ -1,4 +1,7 @@
 """Rule Manager – view active/suggested rules and push new ones to the bot."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 import streamlit as st
 import pandas as pd
 from sqlalchemy import text

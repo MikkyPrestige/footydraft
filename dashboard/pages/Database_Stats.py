@@ -1,4 +1,7 @@
 """Database Stats – quick health overview with HTML cards."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 import streamlit as st
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, DatabaseError

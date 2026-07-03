@@ -1,4 +1,7 @@
 """Drafts & Queue – view all generated drafts with status filters and pagination."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 import streamlit as st
 import pandas as pd
 from sqlalchemy import text

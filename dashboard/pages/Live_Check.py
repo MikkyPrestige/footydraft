@@ -1,4 +1,7 @@
 """Live Check – run live match checks automatically and show results directly."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 import streamlit as st
 import pandas as pd
 import asyncio

@@ -1,4 +1,7 @@
 """Backup Browser – browse, download, and load backups from Dropbox."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 import os
 import tempfile
 import streamlit as st
