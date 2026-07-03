@@ -214,7 +214,7 @@ def apply_global_styles():
 def render_sidebar():
     """Render the full sidebar with Pages, Backup, and Xquik navigation."""
     with st.sidebar:
-        # --- Pages Navigation (FIRST - most important) ---
+        # --- Pages Navigation (FIRST) ---
         st.subheader("Pages")
         st.page_link("app.py", label=":material/home: Dashboard")
         st.page_link("pages/Drafts.py", label=":material/newspaper: Drafts & Queue")
@@ -280,29 +280,28 @@ def render_sidebar():
 
         st.divider()
 
-        # --- Xquik Toggle ---
-st.subheader("Xquik Posting")
+        # --- Xquik Toggle (THIRD) ---
+        st.subheader("Xquik Posting")
 
-# Initialize session state for Xquik
-if "xquik_enabled" not in st.session_state:
-    st.session_state.xquik_enabled = XQUIK_POSTING_ENABLED
+        # Initialize session state for Xquik
+        if "xquik_enabled" not in st.session_state:
+            st.session_state.xquik_enabled = XQUIK_POSTING_ENABLED
 
-# Display current state
-if st.session_state.xquik_enabled:
-    st.success(":material/check_circle: Xquik is enabled")
-    if st.button("Disable Xquik", key="disable_xquik"):
-        try:
-            toggle_xquik_and_restart(False)
-            st.session_state.xquik_enabled = False
-            st.rerun()
-        except Exception as e:
-            st.error(f"Failed: {e}")
-else:
-    st.info(":material/radio_button_unchecked: Xquik is disabled")
-    if st.button("Enable Xquik", key="enable_xquik"):
-        try:
-            toggle_xquik_and_restart(True)
-            st.session_state.xquik_enabled = True
-            st.rerun()
-        except Exception as e:
-            st.error(f"Failed: {e}")
+        if st.session_state.xquik_enabled:
+            st.success(":material/check_circle: Xquik is enabled")
+            if st.button("Disable Xquik", key="disable_xquik"):
+                try:
+                    toggle_xquik_and_restart(False)
+                    st.session_state.xquik_enabled = False
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed: {e}")
+        else:
+            st.info(":material/radio_button_unchecked: Xquik is disabled")
+            if st.button("Enable Xquik", key="enable_xquik"):
+                try:
+                    toggle_xquik_and_restart(True)
+                    st.session_state.xquik_enabled = True
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed: {e}")
