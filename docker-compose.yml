@@ -1,0 +1,44 @@
+# docker-compose.yml
+services:
+  # Telegram Bot Service
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: football-x-bot
+    restart: unless-stopped
+    volumes:
+      # Persist SQLite database
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    networks:
+      - football-x-network
+    command: ["python", "bot/main.py"]
+
+  # Streamlit Dashboard Service
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile.dashboard
+    container_name: football-x-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      # Persist SQLite database (shared with bot)
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    networks:
+      - football-x-network
+    depends_on:
+      - bot
+
+networks:
+  football-x-network:
+    driver: bridge

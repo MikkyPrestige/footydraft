@@ -7,6 +7,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Set Python path to find modules at /app
+ENV PYTHONPATH="${PYTHONPATH}:/app"
+
+# Create directory for SQLite database persistence
+RUN mkdir -p /app/data
+
 # Copy requirements and install Python packages
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

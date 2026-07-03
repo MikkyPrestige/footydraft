@@ -33,3 +33,8 @@ DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
 DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
 DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
 SENTRY_DSN = os.getenv('SENTRY_DSN')
+
+# Fly.io runtime variables (automatically set by Fly.io)
+FLY_APP_NAME = os.getenv("FLY_APP_NAME")
+FLY_MACHINE_ID = os.getenv("FLY_MACHINE_ID")
+FLY_API_TOKEN = os.getenv("FLY_API_TOKEN")

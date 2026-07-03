@@ -9,7 +9,7 @@ SCOREBOARD_URLS = [
     # UEFA competitions
     "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard",
     "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa/scoreboard",
-    "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa.conference/scoreboard",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa.conf/scoreboard",
     # Domestic cups
     "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.fa/scoreboard",
     "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.league_cup/scoreboard",

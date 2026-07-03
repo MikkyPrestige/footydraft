@@ -1,0 +1,7 @@
+streamlit
+altair
+pandas
+dropbox
+requests
+sqlalchemy
+python-dotenv
