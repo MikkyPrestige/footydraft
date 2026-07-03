@@ -1,6 +1,9 @@
 """Football X Agent – Streamlit Dashboard (multi‑page)."""
 import streamlit as st
 import sys
+import os
+os.makedirs("/tmp/data", exist_ok=True)
+
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
