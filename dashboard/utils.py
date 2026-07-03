@@ -177,6 +177,11 @@ def toggle_xquik_and_restart(enable: bool):
     import requests
     from config.settings import FLY_API_TOKEN, FLY_APP_NAME, FLY_MACHINE_ID
 
+    # Debug: check if values are loaded
+    print(f"FLY_API_TOKEN: {FLY_API_TOKEN[:10] if FLY_API_TOKEN else 'NOT SET'}...")
+    print(f"FLY_APP_NAME: {FLY_APP_NAME}")
+    print(f"FLY_MACHINE_ID: {FLY_MACHINE_ID}")
+
     new_value = "1" if enable else "0"
     # 1) Set the secret via Fly GraphQL API
     query = """

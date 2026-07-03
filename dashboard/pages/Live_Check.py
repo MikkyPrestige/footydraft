@@ -33,7 +33,7 @@ st.write("Results update automatically when you open the page. Use the button be
 
 
 # ---------- Cached fetch function ----------
-@st.cache_data(ttl=None)  # Cache indefinitely until manually cleared
+@st.cache_data(ttl=300)  # 5-minute cache
 def fetch_live_data():
     """Fetch live data from API‑Football and ESPN. Cached for performance."""
     results = {}
@@ -48,14 +48,9 @@ def fetch_live_data():
             fetcher2 = APIFootballFetcher(match_date=yesterday)
             items = asyncio.run(fetcher2.fetch())
         results["API‑Football"] = items
-    except ImportError as e:
-        results["API‑Football"] = f"ERROR: Import failed: {e}"
-    except ConnectionError:
-        results["API‑Football"] = "ERROR: Connection failed"
-    except Timeout:
-        results["API‑Football"] = "ERROR: Timeout"
     except Exception as e:
-        results["API‑Football"] = f"ERROR: {str(e)[:100]}"
+        # Return None so we don't cache errors
+        return None
 
     # ---------- ESPN ----------
     try:
@@ -63,14 +58,9 @@ def fetch_live_data():
         espn = ESPNFetcher()
         items_espn = asyncio.run(espn.fetch())
         results["ESPN"] = items_espn
-    except ImportError as e:
-        results["ESPN"] = f"ERROR: Import failed: {e}"
-    except ConnectionError:
-        results["ESPN"] = "ERROR: Connection failed"
-    except Timeout:
-        results["ESPN"] = "ERROR: Timeout"
     except Exception as e:
-        results["ESPN"] = f"ERROR: {str(e)[:100]}"
+        # Return None so we don't cache errors
+        return None
 
     return results
 
