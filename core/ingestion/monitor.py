@@ -1,18 +1,30 @@
 """Source health monitor: records fetch outcomes and detects failures."""
 from datetime import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from core.database import SessionLocal
 from core.models import SourceHealth
 
+
 def record_success(source_name: str):
     """Mark a successful fetch for the given source."""
-    with SessionLocal() as session:
-        _upsert_health(session, source_name, success=True)
+    try:
+        with SessionLocal() as session:
+            _upsert_health(session, source_name, success=True)
+    except OperationalError:
+        # Table doesn't exist yet — safe to ignore
+        pass
+
 
 def record_failure(source_name: str):
     """Mark a failed fetch and possibly set status to DOWN."""
-    with SessionLocal() as session:
-        _upsert_health(session, source_name, success=False)
+    try:
+        with SessionLocal() as session:
+            _upsert_health(session, source_name, success=False)
+    except OperationalError:
+        # Table doesn't exist yet — safe to ignore
+        pass
+
 
 def _upsert_health(session: Session, name: str, success: bool):
     entry = session.get(SourceHealth, name)

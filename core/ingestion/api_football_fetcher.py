@@ -123,20 +123,10 @@ class APIFootballFetcher(BaseFetcher):
                         raw_text=f"Match status: {status}"
                     ))
 
-            # Record success — silently ignore if table doesn't exist
-            try:
-                record_success("API-Football")
-            except Exception:
-                pass  # Table doesn't exist yet — safe to ignore
-
+            record_success("API-Football")
         except Exception as e:
-            # Record failure — silently ignore if table doesn't exist
-            try:
-                record_failure("API-Football")
-            except Exception:
-                pass  # Table doesn't exist yet — safe to ignore
+            record_failure("API-Football")
             print(f"API-Football fetch failed: {e}")
-
         return items
 
     def _get_json(self, url: str):

@@ -9,7 +9,7 @@ SCOREBOARD_URLS = [
     # UEFA competitions
     "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard",
     "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa/scoreboard",
-    "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa.conf/scoreboard",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa.conf/scoreboard",  # fixed URL
     # Domestic cups
     "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.fa/scoreboard",
     "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.league_cup/scoreboard",
@@ -93,20 +93,10 @@ class ESPNFetcher(BaseFetcher):
                     except Exception:
                         pass
 
-            # Record success — silently ignore if table doesn't exist
-            try:
-                record_success("ESPN")
-            except Exception:
-                pass  # Table doesn't exist yet — safe to ignore
-
+            record_success("ESPN")
         except Exception as e:
-            # Record failure — silently ignore if table doesn't exist
-            try:
-                record_failure("ESPN")
-            except Exception:
-                pass  # Table doesn't exist yet — safe to ignore
+            record_failure("ESPN")
             print(f"ESPN fetch failed: {e}")
-
         return items
 
     def _get_json(self, url: str):
