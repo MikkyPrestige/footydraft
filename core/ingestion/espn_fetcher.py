@@ -94,6 +94,7 @@ class ESPNFetcher(BaseFetcher):
                         pass
 
     # Only record if source_health table exists
+                       # Only record if source_health table exists
             try:
                 record_success("ESPN")
             except Exception:
