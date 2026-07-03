@@ -14,7 +14,7 @@ from dashboard.ui_components import apply_global_styles, render_sidebar
 try:
     restore_backup_state()
 except Exception:
-    pass  # We'll handle it in the main flow
+    pass  # handled in the main flow
 
 st.set_page_config(
     page_title="Source Health",

@@ -5,7 +5,6 @@ import tempfile
 import streamlit as st
 import dropbox
 import requests
-import pandas as pd
 from sqlalchemy import create_engine
 from config.settings import (
     DROPBOX_APP_KEY,
@@ -145,7 +144,7 @@ def send_livecheck_to_telegram():
     return resp.json()
 
 def send_bot_command(command_text: str):
-    """Send a raw command to the Telegram bot (admin chat)."""
+    """Send a raw command to the Telegram bot"""
     import requests
     from config.settings import TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -202,3 +201,29 @@ def toggle_xquik_and_restart(enable: bool):
     )
     if resp2.status_code != 200:
         raise RuntimeError(f"Failed to restart machine: {resp2.text}")
+
+def get_fly_secret_value(key: str) -> str | None:
+    """Query Fly.io for the current value of a secret."""
+    import requests
+    from config.settings import FLY_API_TOKEN, FLY_APP_NAME
+
+    if not FLY_API_TOKEN or not FLY_APP_NAME:
+        return None
+
+    try:
+        url = f"https://api.machines.dev/v1/apps/{FLY_APP_NAME}/secrets"
+        resp = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {FLY_API_TOKEN}"},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        secrets = data.get("secrets", [])
+        for secret in secrets:
+            if secret.get("name") == key:
+                return secret.get("digest")  # Fly.io returns "digest" for the value
+        return None
+    except Exception:
+        return None

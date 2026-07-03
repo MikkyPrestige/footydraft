@@ -6,7 +6,6 @@ import streamlit as st
 import pandas as pd
 import asyncio
 from datetime import datetime, timedelta
-from requests.exceptions import ConnectionError, Timeout
 
 from dashboard.utils import restore_backup_state
 from dashboard.ui_components import apply_global_styles, render_sidebar
@@ -15,7 +14,7 @@ from dashboard.ui_components import apply_global_styles, render_sidebar
 try:
     restore_backup_state()
 except Exception:
-    pass  # We'll handle it in the main flow
+    pass  # handled in the main flow
 
 st.set_page_config(
     page_title="Live Check",
@@ -96,7 +95,7 @@ if display_data:
             if not items:
                 st.info(f":material/inbox: No live matches from {source}.")
                 continue
-            # We need classify_item here — import it inside to avoid global import issues
+            # Import classify_item to tag the items
             from core.classification.event_tagger import classify_item
             rows = []
             for item in items:

@@ -3,7 +3,7 @@ import streamlit as st
 import dropbox
 from requests.exceptions import ConnectionError, Timeout
 from config.settings import XQUIK_POSTING_ENABLED
-from dashboard.utils import load_latest_backup_engine, toggle_xquik_and_restart
+from dashboard.utils import load_latest_backup_engine, toggle_xquik_and_restart, get_fly_secret_value
 
 
 def apply_global_styles():
@@ -214,7 +214,7 @@ def apply_global_styles():
 def render_sidebar():
     """Render the full sidebar with Pages, Backup, and Xquik navigation."""
     with st.sidebar:
-        # --- Pages Navigation (FIRST) ---
+        # --- Pages Navigation ---
         st.subheader("Pages")
         st.page_link("app.py", label=":material/home: Dashboard")
         st.page_link("pages/Drafts.py", label=":material/newspaper: Drafts & Queue")
@@ -227,7 +227,7 @@ def render_sidebar():
 
         st.divider()
 
-        # --- Backup Section (SECOND) ---
+        # --- Backup Section ---
         st.header("Load Backup")
 
         if st.button("Load latest backup from Dropbox"):
@@ -280,28 +280,41 @@ def render_sidebar():
 
         st.divider()
 
-        # --- Xquik Toggle (THIRD) ---
+         # --- Xquik Toggle ---
         st.subheader("Xquik Posting")
 
-        # Initialize session state for Xquik
+        # Sync with Fly.io on page load (only once per session)
+        if "xquik_synced" not in st.session_state:
+            fly_value = get_fly_secret_value("XQUIK_POSTING_ENABLED")
+            if fly_value is not None:
+                st.session_state.xquik_enabled = (fly_value == "1")
+            else:
+                # Fallback to environment variable if API fails
+                st.session_state.xquik_enabled = XQUIK_POSTING_ENABLED
+            st.session_state.xquik_synced = True
+
+        # Ensure session_state has the key
         if "xquik_enabled" not in st.session_state:
             st.session_state.xquik_enabled = XQUIK_POSTING_ENABLED
 
-        if st.session_state.xquik_enabled:
-            st.success(":material/check_circle: Xquik is enabled")
-            if st.button("Disable Xquik", key="disable_xquik"):
-                try:
-                    toggle_xquik_and_restart(False)
-                    st.session_state.xquik_enabled = False
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed: {e}")
-        else:
-            st.info(":material/radio_button_unchecked: Xquik is disabled")
-            if st.button("Enable Xquik", key="enable_xquik"):
-                try:
-                    toggle_xquik_and_restart(True)
-                    st.session_state.xquik_enabled = True
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed: {e}")
+        # Define callback for toggle
+        def on_xquik_toggle():
+            new_value = st.session_state.xquik_toggle
+            try:
+                toggle_xquik_and_restart(new_value)
+                st.session_state.xquik_enabled = new_value
+                # Force rerun to update UI
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to toggle Xquik: {e}")
+                # Revert toggle state
+                st.session_state.xquik_toggle = st.session_state.xquik_enabled
+
+        # Use st.toggle with key binding
+        st.toggle(
+            "Enable Xquik posting",
+            value=st.session_state.xquik_enabled,
+            key="xquik_toggle",
+            on_change=on_xquik_toggle,
+            help="When enabled, the /postx command will work on the bot."
+        )

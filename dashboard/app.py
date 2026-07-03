@@ -5,12 +5,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import streamlit as st
 import os
 os.makedirs("/tmp/data", exist_ok=True)
-
-# Import UI components
 from dashboard.ui_components import apply_global_styles, render_sidebar
-from config.settings import XQUIK_POSTING_ENABLED
-import dropbox
-from requests.exceptions import ConnectionError, Timeout
 
 st.set_page_config(
     page_title="SFootball X Agent Dashboard",
@@ -21,7 +16,7 @@ st.set_page_config(
 # Inject global styles (CSS) immediately
 apply_global_styles()
 
-# Render the sidebar (Backup, Xquik, Pages)
+# Render the sidebar
 render_sidebar()
 
 # --- Main Home Page Content ---

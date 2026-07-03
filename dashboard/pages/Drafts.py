@@ -15,7 +15,7 @@ from config.settings import XQUIK_POSTING_ENABLED
 try:
     restore_backup_state()
 except Exception:
-    pass  # We'll handle it in the main flow
+    pass  # handled in the main flow
 
 st.set_page_config(
     page_title="Drafts & Queue",
@@ -27,7 +27,7 @@ st.set_page_config(
 apply_global_styles()
 render_sidebar()
 
-# Remove red border from the status filter (page-specific style)
+# Remove red border from the status filter
 st.markdown("""
 <style>
 div[data-baseweb="select"] > div {
