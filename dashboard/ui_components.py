@@ -316,3 +316,10 @@ def render_sidebar():
             on_change=on_xquik_toggle,
             help="When enabled, the /postx command will work on the bot."
         )
+
+         # DEBUG: Check if database is accessible
+        try:
+            test_value = get_app_setting("xquik_enabled", "NOT_SET")
+            st.write(f"DEBUG - Database value: {test_value}")
+        except Exception as e:
+            st.error(f"DEBUG - Database error: {e}")
