@@ -2,8 +2,7 @@
 import streamlit as st
 import dropbox
 from requests.exceptions import ConnectionError, Timeout
-from config.settings import XQUIK_POSTING_ENABLED
-from dashboard.utils import load_latest_backup_engine, toggle_xquik_and_restart, get_app_setting, set_app_setting
+from dashboard.utils import load_latest_backup_engine
 
 
 def apply_global_styles():
@@ -279,45 +278,3 @@ def render_sidebar():
             st.info(":material/folder_open: Load a backup to view analytics.")
 
         st.divider()
-
-        # --- Xquik Toggle ---
-        st.subheader("Xquik Posting")
-
-        # Read current value from database on page load (only once per session)
-        if "xquik_enabled" not in st.session_state:
-            db_value = get_app_setting("xquik_enabled", None)
-            if db_value is None:
-                # No row exists — create one with default "1"
-                set_app_setting("xquik_enabled", "1")
-                st.session_state.xquik_enabled = True
-            else:
-                st.session_state.xquik_enabled = (db_value == "1")
-
-        # Ensure session_state is always set
-        if "xquik_enabled" not in st.session_state:
-            st.session_state.xquik_enabled = True
-
-        # Define callback for toggle
-        def on_xquik_toggle():
-            new_value = st.session_state.xquik_toggle
-            set_app_setting("xquik_enabled", "1" if new_value else "0")
-            try:
-                toggle_xquik_and_restart(new_value)
-            except Exception as e:
-                st.error(f"Failed to update Fly.io: {e}")
-            st.session_state.xquik_enabled = new_value
-
-        st.toggle(
-            "Enable Xquik posting",
-            value=st.session_state.xquik_enabled,
-            key="xquik_toggle",
-            on_change=on_xquik_toggle,
-            help="When enabled, the /postx command will work on the bot."
-        )
-
-        # DEBUG: Check if database is accessible
-        try:
-            test_value = get_app_setting("xquik_enabled", "NOT_SET")
-            st.write(f"DEBUG - Database value: {test_value}")
-        except Exception as e:
-            st.error(f"DEBUG - Database error: {e}")
