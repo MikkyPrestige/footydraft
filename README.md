@@ -1,6 +1,6 @@
 # ⚽ Football X Agent
 
-An AI‑powered assistant that helps you run a high‑quality, on‑trend football Twitter (X) account.
+An AI powered assistant that helps you run a high‑quality, on‑trend football Twitter (X) account.
 It continuously monitors **free** news sources, generates context‑aware tweet drafts using a large language model, and delivers them to you via a Telegram bot for manual review, copying, and optional Xquik posting.
 Over time, it learns from your engagement metrics to refine its writing style - all while keeping **you** in full control.
 
@@ -9,6 +9,7 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 ## ✨ Features
 
 - **Real‑time news ingestion** (RSS, Reddit, Google News, API‑Football) - 100% free
+- **Interactive Streamlit Dashboard** – view drafts, performance analytics, source health, rules, and backups in one place
 - **Hybrid tweet drafting** with three personas (pundit, fan, analyst)
 - **Three variants per normal event**, one per live match event
 - **Telegram bot** for reviewing, copying, and tracking drafts
@@ -76,6 +77,21 @@ football-x-agent/
 │   ├── handlers.py          # All command handlers
 │   ├── keyboard.py          # Inline keyboards (Copy, pagination)
 │   └── main.py              # Bot entry point + live‑draft push
+├── dashboard/               # Streamlit dashboard
+│   ├── app.py               # Main dashboard entry point
+│   ├── ui_components.py     # Shared UI (CSS, sidebar, navigation)
+│   ├── utils.py             # Shared utilities (Dropbox, database helpers)
+│   ├── requirements.txt     # Dashboard dependencies
+│   ├── Dockerfile.dashboard # Dockerfile for dashboard service
+│   ├── static/              # Static assets (favicon, etc.)
+│   └── pages/               # Dashboard pages
+│       ├── Backup_Browser.py
+│       ├── Database_Stats.py
+│       ├── Drafts.py
+│       ├── Live_Check.py
+│       ├── Performance.py
+│       ├── Rule_Manager.py
+│       └── Source_Health.py
 ├── data/                    # SQLite database (auto‑created)
 ├── tests/                   # Unit & integration tests
 ├── .env.example             # Environment template
@@ -146,6 +162,37 @@ python -m bot.main
 - `/restore` – gated database restore from Dropbox backups
 - `/restart` – Restart the bot (two-step confirmation)
 
+
+### 5. (Optional) Run the Streamlit Dashboard
+
+```bash
+# Install dashboard dependencies
+pip install -r dashboard/requirements.txt
+
+# Run the dashboard
+streamlit run dashboard/app.py
+```
+> The dashboard will be available at http://localhost:8501
+
+
+### 6. (Optional) Run both bot and dashboard with Docker Compose
+**Start both services**
+```bash
+docker compose up -d
+```
+
+**Start only the dashboard**
+```bash
+docker compose up -d dashboard
+```
+
+**Start only the bot**
+```bash
+docker compose up -d bot
+```
+
+> The dashboard will be available at http://localhost:8501
+
 ---
 
 ## ☁️ Deploying to Fly.io (24/7)
@@ -160,17 +207,43 @@ It runs both the scheduler and the Telegram bot in a single small VM (~$1.94/mon
    flyctl apps create football-x-agent --yes
    flyctl volumes create agent_data --region iad --size 1 -a football-x-agent
    ```
-4. Set secrets (replace with your values):
-   ```bash
-   flyctl secrets set OPENAI_API_KEY="sk-..." TELEGRAM_BOT_TOKEN="123:abc" ... -a football-x-agent
-   ```
-5. Deploy:
-   ```bash
-   flyctl deploy -a football-x-agent
-   ```
+4. Set secrets (replace with your values): `flyctl secrets set OPENAI_API_KEY="sk-..." TELEGRAM_BOT_TOKEN="123:abc" ... -a football-x-agent`
+5. Deploy: `flyctl deploy -a football-x-agent`
 6. Check logs: `flyctl logs -a football-x-agent`
 
-Your bot will now run 24/7 without needing your computer.
+> Your bot will now run 24/7 without needing your computer.
+
+---
+
+## 📊 Deploying the Dashboard to Streamlit Cloud (24/7)
+
+The dashboard can be deployed to [Streamlit Cloud](https://streamlit.io/cloud) for 24/7 access.
+
+1. Push your code to GitHub.
+2. Go to [Streamlit Cloud](https://share.streamlit.io/) and sign in with GitHub.
+3. Click **"New app"** and select your repository.
+4. Set the main file path to: `dashboard/app.py`
+5. In **Settings** → **Secrets**, add the following environment variables:
+
+```toml
+DROPBOX_APP_KEY = "your_key"
+DROPBOX_APP_SECRET = "your_secret"
+DROPBOX_REFRESH_TOKEN = "your_token"
+TELEGRAM_BOT_TOKEN = "your_token"
+ADMIN_CHAT_ID = "your_chat_id"
+
+# Required for Xquik toggle (via Fly.io CLI only)
+XQUIK_POSTING_ENABLED = "1"
+
+# Required if using Xquik toggle (optional)
+FLY_API_TOKEN = "your_token"
+FLY_APP_NAME = "football-x-agent"
+FLY_MACHINE_ID = "your_machine_id"
+```
+
+6. Click Deploy.
+
+> The dashboard will be available at https://your-app-name.streamlit.app
 
 ---
 
@@ -196,8 +269,36 @@ All important settings are in `config/settings.py` and can be overridden with en
 | `DROPBOX_REFRESH_TOKEN` | – | Dropbox refresh token (never expires) |
 | `SENTRY_DSN` | – | Sentry DSN for error tracking |
 | `FLY_API_TOKEN` | – | Fly.io org token (required for `/restart`) |
+| `STREAMLIT_SERVER_PORT` | `8501` | Port for Streamlit dashboard |
+| `STREAMLIT_SERVER_ADDRESS` | `0.0.0.0` | Address for Streamlit dashboard |
 
 ---
+
+## 🔐 Xquik Posting Control
+
+Xquik posting allows the bot to automatically post tweets to X (Twitter). This is controlled via Fly.io environment variables.
+
+**Enable Xquik**
+```bash
+flyctl secrets set XQUIK_POSTING_ENABLED=1 -a football-x-agent
+flyctl machines restart <machine_id> -a football-x-agent
+```
+
+**Disable Xquik**
+```bash
+flyctl secrets set XQUIK_POSTING_ENABLED=0 -a football-x-agent
+flyctl machines restart <machine_id> -a football-x-agent
+```
+
+**Get machine ID**
+```bash
+flyctl machines list -a football-x-agent
+```
+
+> The `/postx` command in the Telegram bot will only work when `XQUIK_POSTING_ENABLED=1`
+
+> [!NOTE] The Xquik toggle has been removed from the Streamlit dashboard due to persistence issues on Streamlit Cloud. The backend functionality remains fully available via the Fly.io CLI.
+
 
 ## 🧪 Testing
 
@@ -213,7 +314,6 @@ python -m tests.test_queue_manager
 
 ## 🗺 Roadmap / Future
 
-- [ ] Web dashboard (Streamlit)
 - [ ] Optional scheduled auto‑posting with kill‑switch
 - [ ] More news sources (Livescore, OneFootball)
 - [ ] Multi‑language support
