@@ -11,6 +11,8 @@ from config.settings import (
     DROPBOX_APP_SECRET,
     DROPBOX_REFRESH_TOKEN,
 )
+from core.database import SessionLocal
+from core.models import AppSetting
 
 @st.cache_resource
 def get_dropbox_client():
@@ -227,3 +229,27 @@ def get_fly_secret_value(key: str) -> str | None:
         return None
     except Exception:
         return None
+
+def get_app_setting(key: str, default: str = None) -> str | None:
+    """Get a setting value from the database."""
+    try:
+        with SessionLocal() as session:
+            setting = session.get(AppSetting, key)
+            return setting.value if setting else default
+    except Exception:
+        return default
+
+
+def set_app_setting(key: str, value: str) -> None:
+    """Set a setting value in the database."""
+    try:
+        with SessionLocal() as session:
+            setting = session.get(AppSetting, key)
+            if setting:
+                setting.value = value
+            else:
+                setting = AppSetting(key=key, value=value)
+                session.add(setting)
+            session.commit()
+    except Exception:
+        pass  # Silent fail, but we could log
