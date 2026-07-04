@@ -285,8 +285,13 @@ def render_sidebar():
 
         # Read current value from database on page load (only once per session)
         if "xquik_enabled" not in st.session_state:
-            db_value = get_app_setting("xquik_enabled", "1")
-            st.session_state.xquik_enabled = (db_value == "1")
+            db_value = get_app_setting("xquik_enabled", None)
+            if db_value is None:
+                # No row exists — create one with default "1"
+                set_app_setting("xquik_enabled", "1")
+                st.session_state.xquik_enabled = True
+            else:
+                st.session_state.xquik_enabled = (db_value == "1")
 
         # Ensure session_state is always set
         if "xquik_enabled" not in st.session_state:
@@ -295,20 +300,13 @@ def render_sidebar():
         # Define callback for toggle
         def on_xquik_toggle():
             new_value = st.session_state.xquik_toggle
-            # 1. Update database
             set_app_setting("xquik_enabled", "1" if new_value else "0")
-            # 2. Update Fly.io and restart bot
             try:
                 toggle_xquik_and_restart(new_value)
             except Exception as e:
                 st.error(f"Failed to update Fly.io: {e}")
-                # Revert the database if Fly.io fails? Not ideal, but we'll keep it simple.
-            # 3. Update session state
             st.session_state.xquik_enabled = new_value
-            # Force rerun to reflect changes
-            st.rerun()
 
-        # Use st.toggle with key binding
         st.toggle(
             "Enable Xquik posting",
             value=st.session_state.xquik_enabled,
@@ -317,7 +315,7 @@ def render_sidebar():
             help="When enabled, the /postx command will work on the bot."
         )
 
-         # DEBUG: Check if database is accessible
+        # DEBUG: Check if database is accessible
         try:
             test_value = get_app_setting("xquik_enabled", "NOT_SET")
             st.write(f"DEBUG - Database value: {test_value}")
