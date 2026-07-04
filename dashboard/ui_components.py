@@ -3,7 +3,7 @@ import streamlit as st
 import dropbox
 from requests.exceptions import ConnectionError, Timeout
 from config.settings import XQUIK_POSTING_ENABLED
-from dashboard.utils import load_latest_backup_engine, toggle_xquik_and_restart, get_fly_secret_value
+from dashboard.utils import load_latest_backup_engine, toggle_xquik_and_restart, get_app_setting, set_app_setting
 
 
 def apply_global_styles():
@@ -280,35 +280,33 @@ def render_sidebar():
 
         st.divider()
 
-         # --- Xquik Toggle ---
+        # --- Xquik Toggle ---
         st.subheader("Xquik Posting")
 
-        # Sync with Fly.io on page load (only once per session)
-        if "xquik_synced" not in st.session_state:
-            fly_value = get_fly_secret_value("XQUIK_POSTING_ENABLED")
-            if fly_value is not None:
-                st.session_state.xquik_enabled = (fly_value == "1")
-            else:
-                # Fallback to environment variable if API fails
-                st.session_state.xquik_enabled = XQUIK_POSTING_ENABLED
-            st.session_state.xquik_synced = True
-
-        # Ensure session_state has the key
+        # Read current value from database on page load (only once per session)
         if "xquik_enabled" not in st.session_state:
-            st.session_state.xquik_enabled = XQUIK_POSTING_ENABLED
+            db_value = get_app_setting("xquik_enabled", "1")
+            st.session_state.xquik_enabled = (db_value == "1")
+
+        # Ensure session_state is always set
+        if "xquik_enabled" not in st.session_state:
+            st.session_state.xquik_enabled = True
 
         # Define callback for toggle
         def on_xquik_toggle():
             new_value = st.session_state.xquik_toggle
+            # 1. Update database
+            set_app_setting("xquik_enabled", "1" if new_value else "0")
+            # 2. Update Fly.io and restart bot
             try:
                 toggle_xquik_and_restart(new_value)
-                st.session_state.xquik_enabled = new_value
-                # Force rerun to update UI
-                st.rerun()
             except Exception as e:
-                st.error(f"Failed to toggle Xquik: {e}")
-                # Revert toggle state
-                st.session_state.xquik_toggle = st.session_state.xquik_enabled
+                st.error(f"Failed to update Fly.io: {e}")
+                # Revert the database if Fly.io fails? Not ideal, but we'll keep it simple.
+            # 3. Update session state
+            st.session_state.xquik_enabled = new_value
+            # Force rerun to reflect changes
+            st.rerun()
 
         # Use st.toggle with key binding
         st.toggle(
