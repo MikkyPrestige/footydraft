@@ -54,3 +54,8 @@ class EventCache(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     expiry = Column(DateTime, nullable=False)
 
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    key = Column(String(64), primary_key=True)
+    value = Column(String(256), nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
