@@ -1,6 +1,7 @@
 """Reusable UI components for the Streamlit dashboard."""
 import streamlit as st
 import dropbox
+import hashlib
 from requests.exceptions import ConnectionError, Timeout
 from dashboard.utils import load_latest_backup_engine
 
@@ -286,24 +287,45 @@ def render_sidebar():
                 st.rerun()
 
 def require_auth():
-    """Block access until the user enters the correct password (set in Streamlit secrets)."""
+    """Block access until the user enters the correct password. Uses a URL token
+    to persist authentication across full page refreshes."""
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
 
-    if not st.session_state.authenticated:
-        try:
-            PASSWORD = st.secrets["PASSWORD"]
-        except KeyError:
-            st.error("No PASSWORD secret set. Contact admin.")
-            st.stop()
+    # 1. If already authenticated in this session, skip everything
+    if st.session_state.authenticated:
+        return
 
-        st.title("Dashboard Access")
-        pwd = st.text_input("Enter password", type="password")
-        if st.button("Log in"):
-            if pwd == PASSWORD:
-                st.session_state.authenticated = True
-                st.rerun()
-            else:
-                st.error("Incorrect password")
-
+    try:
+        PASSWORD = st.secrets["PASSWORD"]
+    except KeyError:
+        st.error("No PASSWORD secret set. Contact admin.")
         st.stop()
+
+    # 2. Generate the expected token (SHA‑256 of password)
+    expected_token = hashlib.sha256(PASSWORD.encode()).hexdigest()
+
+    # 3. Check if a valid token is already in the URL
+    query_params = st.experimental_get_query_params()
+    token_from_url = query_params.get("auth_token", [None])[0]
+
+    if token_from_url == expected_token:
+        # Token is valid → authenticate without showing login
+        st.session_state.authenticated = True
+        # Clean up the URL (optional – remove token to hide it)
+        st.experimental_set_query_params()
+        st.rerun()
+
+    # 4. Show login form (no token, or token invalid)
+    st.title("Dashboard Access")
+    pwd = st.text_input("Enter password", type="password")
+
+    if st.button("Log in"):
+        if pwd == PASSWORD:
+            st.session_state.authenticated = True
+            # Put the token into the URL so it survives a refresh
+            st.experimental_set_query_params(auth_token=expected_token)
+            st.rerun()
+        else:
+            st.error("Incorrect password")
+    st.stop()
