@@ -284,6 +284,7 @@ def render_sidebar():
         if st.session_state.get("authenticated"):
             if st.button("Log out"):
                 st.session_state.authenticated = False
+                st.experimental_set_query_params()   # clear token from URL
                 st.rerun()
 
 def require_auth():
