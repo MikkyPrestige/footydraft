@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import streamlit as st
 import os
 os.makedirs("/tmp/data", exist_ok=True)
-from dashboard.ui_components import apply_global_styles, render_sidebar
+from dashboard.ui_components import apply_global_styles, render_sidebar, require_auth
 
 st.set_page_config(
     page_title="SFootball X Agent Dashboard",
@@ -13,11 +13,10 @@ st.set_page_config(
     page_icon="dashboard/static/favicon.ico"
 )
 
-# Inject global styles (CSS) immediately
+# Inject global styles, render sidebar and authentication check
 apply_global_styles()
-
-# Render the sidebar
 render_sidebar()
+require_auth()
 
 # --- Main Home Page Content ---
 st.markdown('<div class="dashboard-title">Football X Agent Dashboard</div>', unsafe_allow_html=True)

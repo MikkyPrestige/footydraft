@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, DatabaseError
 
 from dashboard.utils import restore_backup_state
-from dashboard.ui_components import apply_global_styles, render_sidebar
+from dashboard.ui_components import apply_global_styles, render_sidebar, require_auth
 
 # Attempt auto‑restore (safe – any errors will be caught below)
 try:
@@ -21,9 +21,10 @@ st.set_page_config(
     page_icon="dashboard/static/favicon.ico"
 )
 
-# Inject global styles and render sidebar
+# Inject global styles, render sidebar and authentication check
 apply_global_styles()
 render_sidebar()
+require_auth()
 
 # Local card styling for stats
 st.markdown("""

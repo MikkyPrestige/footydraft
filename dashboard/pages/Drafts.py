@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, DatabaseError
 
 from dashboard.utils import restore_backup_state, send_draft_command_to_telegram
-from dashboard.ui_components import apply_global_styles, render_sidebar
+from dashboard.ui_components import apply_global_styles, render_sidebar, require_auth
 from config.settings import XQUIK_POSTING_ENABLED
 
 # Attempt auto‑restore (safe – any errors will be caught below)
@@ -23,9 +23,10 @@ st.set_page_config(
     page_icon="dashboard/static/favicon.ico"
 )
 
-# Inject global styles and render sidebar
+# Inject global styles, render sidebar and authentication check
 apply_global_styles()
 render_sidebar()
+require_auth()
 
 # Remove red border from the status filter
 st.markdown("""

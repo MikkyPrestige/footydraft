@@ -278,3 +278,32 @@ def render_sidebar():
             st.info(":material/folder_open: Load a backup to view analytics.")
 
         st.divider()
+
+        # --- Logout ---
+        if st.session_state.get("authenticated"):
+            if st.button("Log out"):
+                st.session_state.authenticated = False
+                st.rerun()
+
+def require_auth():
+    """Block access until the user enters the correct password (set in Streamlit secrets)."""
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if not st.session_state.authenticated:
+        try:
+            PASSWORD = st.secrets["PASSWORD"]
+        except KeyError:
+            st.error("No PASSWORD secret set. Contact admin.")
+            st.stop()
+
+        st.title("Dashboard Access")
+        pwd = st.text_input("Enter password", type="password")
+        if st.button("Log in"):
+            if pwd == PASSWORD:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Incorrect password")
+
+        st.stop()
