@@ -284,7 +284,7 @@ def render_sidebar():
         if st.session_state.get("authenticated"):
             if st.button("Log out"):
                 st.session_state.authenticated = False
-                st.experimental_set_query_params()   # clear token from URL
+                st.query_params.clear()  # clear token from URL
                 st.rerun()
 
 def require_auth():
@@ -293,7 +293,6 @@ def require_auth():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
 
-    # 1. If already authenticated in this session, skip everything
     if st.session_state.authenticated:
         return
 
@@ -303,29 +302,26 @@ def require_auth():
         st.error("No PASSWORD secret set. Contact admin.")
         st.stop()
 
-    # 2. Generate the expected token (SHA‑256 of password)
+    # Token is SHA‑256 hash of the password
     expected_token = hashlib.sha256(PASSWORD.encode()).hexdigest()
 
-    # 3. Check if a valid token is already in the URL
-    query_params = st.experimental_get_query_params()
-    token_from_url = query_params.get("auth_token", [None])[0]
+    # Check URL query parameters using the new st.query_params API
+    token_from_url = st.query_params.get("auth_token", None)
 
     if token_from_url == expected_token:
-        # Token is valid → authenticate without showing login
         st.session_state.authenticated = True
-        # Clean up the URL (optional – remove token to hide it)
-        st.experimental_set_query_params()
+        # Remove token from URL (cleaner)
+        st.query_params.clear()
         st.rerun()
 
-    # 4. Show login form (no token, or token invalid)
+    # Show login form
     st.title("Dashboard Access")
     pwd = st.text_input("Enter password", type="password")
 
     if st.button("Log in"):
         if pwd == PASSWORD:
             st.session_state.authenticated = True
-            # Put the token into the URL so it survives a refresh
-            st.experimental_set_query_params(auth_token=expected_token)
+            st.query_params["auth_token"] = expected_token
             st.rerun()
         else:
             st.error("Incorrect password")
