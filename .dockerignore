@@ -20,5 +20,4 @@ build/
 .vscode/
 *.log
 fly.toml
-start.sh
 dashboard/Dockerfile.dashboard
