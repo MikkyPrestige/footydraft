@@ -142,19 +142,33 @@ async def fetch_and_draft_leaderboards():
         print("📊 Leaderboard: No scorer data available.")
         return
 
-    lines = ["🏆 FIFA World Cup 2026 — Top Scorers", ""]
+    lines = ["🏆 FIFA World Cup 2026 — Top Scorers & Assists", ""]
+
+    # ⚽ Top Scorers (already sorted by goals)
+    lines.append("⚽ Top Scorers:")
     for i, s in enumerate(scorers[:10], start=1):
         name = s["player"]["name"]
         goals = s.get("goals", 0)
-        assists = s.get("assists") or 0
-        line = f"{i}. {name} — {goals}⚽"
-        if assists:
-            line += f" {assists}🅰️"
-        lines.append(line)
+        lines.append(f"{i}. {name} — {goals} goals")
+    lines.append("")
+
+    # 🅰️ Top Assists (sort by assists descending)
+    by_assists = sorted(
+        [s for s in scorers if s.get("assists")],
+        key=lambda x: x["assists"],
+        reverse=True
+    )[:5]
+    if by_assists:
+        lines.append("🅰️ Top Assists:")
+        for i, s in enumerate(by_assists, start=1):
+            name = s["player"]["name"]
+            assists = s["assists"]
+            lines.append(f"{i}. {name} — {assists} assists")
+        lines.append("")
 
     raw = "\n".join(lines)
     item = NewsItem(
-        title="🏆 WC 2026 Top Scorers",
+        title="🏆 WC 2026 Top Scorers & Assists",
         url="https://www.fifa.com/worldcup/",
         source="Football-Data.org",
         published=datetime.utcnow(),
