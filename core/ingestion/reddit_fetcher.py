@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 import requests
 from core.ingestion.base import BaseFetcher, NewsItem
@@ -27,6 +27,9 @@ class RedditFetcher(BaseFetcher):
                 children = children[:self.max_entries]
             for child in children:
                 post = child["data"]
+                published = datetime.utcfromtimestamp(post["created_utc"])
+                if (datetime.utcnow() - published) > timedelta(hours=12):
+                    continue
                 items.append(NewsItem(
                     title=post["title"],
                     url=f"https://reddit.com{post['permalink']}",

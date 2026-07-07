@@ -1,6 +1,6 @@
 import asyncio
 import feedparser
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 from core.ingestion.base import BaseFetcher, NewsItem
 from core.ingestion.monitor import record_success, record_failure
@@ -35,6 +35,8 @@ class RSSFetcher(BaseFetcher):
                     if not hasattr(entry, 'published_parsed') or not entry.published_parsed:
                         continue
                     published = datetime(*entry.published_parsed[:6])
+                    if (datetime.utcnow() - published) > timedelta(hours=12):
+                         continue
                     items.append(NewsItem(
                         title=entry.title,
                         url=entry.link,

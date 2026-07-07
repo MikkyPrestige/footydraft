@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 from urllib.parse import quote
 import feedparser
@@ -28,6 +28,8 @@ class GoogleNewsFetcher(BaseFetcher):
                 if not hasattr(entry, "published_parsed") or not entry.published_parsed:
                     continue
                 published = datetime(*entry.published_parsed[:6])
+                if (datetime.utcnow() - published) > timedelta(hours=12):
+                    continue
                 items.append(NewsItem(
                     title=entry.title,
                     url=entry.link,
