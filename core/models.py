@@ -53,3 +53,21 @@ class EventCache(Base):
     event_hash = Column(String(128), primary_key=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     expiry = Column(DateTime, nullable=False)
+
+class MatchStats(Base):
+    __tablename__ = "match_stats"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    fixture_id = Column(Integer, nullable=False, unique=True)
+    home_team = Column(String, nullable=False)
+    away_team = Column(String, nullable=False)
+    home_goals = Column(Integer, nullable=False)
+    away_goals = Column(Integer, nullable=False)
+    possession_home = Column(Float, nullable=True)   # stored as decimal, e.g. 67.0
+    possession_away = Column(Float, nullable=True)
+    xg_home = Column(Float, nullable=True)
+    xg_away = Column(Float, nullable=True)
+    total_shots_home = Column(Integer, nullable=True)
+    total_shots_away = Column(Integer, nullable=True)
+    passes_home = Column(Integer, nullable=True)
+    passes_away = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

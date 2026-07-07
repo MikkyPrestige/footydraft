@@ -7,6 +7,7 @@ from core.ingestion.base import BaseFetcher, NewsItem
 from core.ingestion.monitor import record_success, record_failure
 from core.database import SessionLocal
 from core.models import EventCache
+from core.models import MatchStats
 
 BASE_URL = "https://v3.football.api-sports.io"
 HEADERS = {"x-apisports-key": API_FOOTBALL_KEY}
@@ -200,6 +201,50 @@ class APIFootballFetcher(BaseFetcher):
                     lines.append("")
 
                 stat_text = "\n".join(lines)
+
+                # Log match stats for nerdy insights
+                try:
+                    def _get_val(team_stats_list, team_name, stat_name, to_type=float):
+                        for ts in team_stats_list:
+                            if ts["team"]["name"] == team_name:
+                                for s in ts.get("statistics", []):
+                                    if s["type"] == stat_name:
+                                        val = s["value"]
+                                        if val is not None:
+                                            try:
+                                                return to_type(str(val).rstrip('%'))
+                                            except (ValueError, TypeError):
+                                                return None
+                        return None
+
+                    home_poss = _get_val(stats_raw, home, "Ball Possession", float)
+                    away_poss = _get_val(stats_raw, away, "Ball Possession", float)
+                    home_xg = _get_val(stats_raw, home, "expected_goals", float)
+                    away_xg = _get_val(stats_raw, away, "expected_goals", float)
+                    home_shots = _get_val(stats_raw, home, "Total Shots", int)
+                    away_shots = _get_val(stats_raw, away, "Total Shots", int)
+                    home_passes = _get_val(stats_raw, home, "Total passes", int)
+                    away_passes = _get_val(stats_raw, away, "Total passes", int)
+
+                    with SessionLocal() as session:
+                        session.add(MatchStats(
+                            fixture_id=fid,
+                            home_team=home,
+                            away_team=away,
+                            home_goals=home_goals,
+                            away_goals=away_goals,
+                            possession_home=home_poss,
+                            possession_away=away_poss,
+                            xg_home=home_xg,
+                            xg_away=away_xg,
+                            total_shots_home=home_shots,
+                            total_shots_away=away_shots,
+                            passes_home=home_passes,
+                            passes_away=away_passes
+                        ))
+                        session.commit()
+                except Exception:
+                    pass  # duplicate or parse error – skip
 
                 items.append(NewsItem(
                     title=f"📊 FT Stat Pack: {home} vs {away}",
