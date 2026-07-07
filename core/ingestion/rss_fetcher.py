@@ -18,6 +18,15 @@ FEEDS = {
     "FBref (StatsBomb)": "https://fbref.com/feed/",
 }
 
+FAST_FEEDS = {
+    "BBC Gossip": "http://feeds.bbci.co.uk/sport/football/gossip/rss.xml",
+    "ESPN FC Latest": "https://www.espn.com/espn/rss/soccer/news",
+    "The Guardian Football": "https://www.theguardian.com/football/rss",
+    "Daily Mail Football": "https://www.dailymail.co.uk/sport/football/articles.rss",
+    "Metro Football": "https://metro.co.uk/sport/football/feed/",
+    "talkSPORT Football": "https://talksport.com/football/feed/",
+}
+
 class RSSFetcher(BaseFetcher):
     def __init__(self, feeds: dict = None, max_entries: int = None):
         self.feeds = feeds or FEEDS

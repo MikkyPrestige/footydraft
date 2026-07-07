@@ -4,7 +4,7 @@ import time
 import schedule
 import random
 from datetime import datetime, timedelta
-from core.ingestion.rss_fetcher import RSSFetcher
+from core.ingestion.rss_fetcher import RSSFetcher, FAST_FEEDS
 from core.ingestion.reddit_fetcher import RedditFetcher
 from core.ingestion.google_news_fetcher import GoogleNewsFetcher
 from core.ingestion.api_football_fetcher import APIFootballFetcher
@@ -52,6 +52,28 @@ def is_relevant(item) -> bool:
     if item.raw_text:
         return any(kw in item.raw_text.lower() for kw in RELEVANCE_KEYWORDS)
     return False
+
+async def fetch_fast_feeds():
+    """Lightweight fetch of fast‑updating RSS feeds only. Called every 10 min."""
+    fetcher = RSSFetcher(feeds=FAST_FEEDS, max_entries=100)
+    print("⚡ Fast feed cycle starting...")
+    items = await fetcher.fetch()
+    print(f"  Fast feeds: got {len(items)} items")
+
+    # Apply same age and relevance filters as the main cycle
+    age_cutoff = datetime.utcnow() - timedelta(hours=MAX_AGE_HOURS)
+    fresh = [it for it in items if it.published and it.published > age_cutoff]
+    relevant = [it for it in fresh if is_relevant(it)]
+    print(f"  Fast feeds: {len(relevant)} relevant fresh items")
+
+    # Process up to 3 items per fast cycle to keep LLM calls low
+    llm_calls = 0
+    to_process = relevant[:3]
+    for item in to_process:
+        if llm_calls >= MAX_LLM_CALLS_PER_CYCLE:
+            break
+        await process_item(item)
+        llm_calls += 3
 
 async def fetch_all_and_process():
     fetchers = [
@@ -110,6 +132,7 @@ def analytics_job():
 
 def main():
     schedule.every(30).minutes.do(job)
+    schedule.every(10).minutes.do(lambda: asyncio.run(fetch_fast_feeds()))
     schedule.every().tuesday.at("02:00").do(analytics_job)
     schedule.every().day.at("03:00").do(daily_backup_job)
     print("Scheduler started — news every 30 min, analytics on Monday 02:00.")
