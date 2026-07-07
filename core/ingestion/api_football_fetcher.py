@@ -137,7 +137,7 @@ class APIFootballFetcher(BaseFetcher):
                                     stat_text = "\n".join(lines)
 
                                     items.append(NewsItem(
-                                        title=f"📊 Live Stat Snapshot: {home} vs {away}",
+                                        title=f"📊 Live Stats: {home} vs {away}",
                                         url=f"https://www.flashscore.com/match/{fixture_id}",
                                         source="API-Football Stats",
                                         published=datetime.utcnow(),
@@ -247,7 +247,7 @@ class APIFootballFetcher(BaseFetcher):
                     pass  # duplicate or parse error – skip
 
                 items.append(NewsItem(
-                    title=f"📊 FT Stat Pack: {home} vs {away}",
+                    title=f"📊 FT Stats: {home} vs {away}",
                     url=f"https://www.flashscore.com/match/{fid}",
                     source="API-Football Stats",
                     published=datetime.utcnow(),
@@ -298,7 +298,7 @@ class APIFootballFetcher(BaseFetcher):
                 stat_text = "\n".join(lines)
 
                 items.append(NewsItem(
-                    title=f"📊 HT Stat Pack: {home} vs {away}",
+                    title=f"⏸️ HT Stats: {home} vs {away}",
                     url=f"https://www.flashscore.com/match/{fid}",
                     source="API-Football Stats",
                     published=datetime.utcnow(),

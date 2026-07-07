@@ -179,7 +179,7 @@ async def fetch_and_draft_leaderboards():
 
         raw = "\n".join(lines)
         item = NewsItem(
-            title=f"🏆 {comp_name} Top Scorers & Assists — {datetime.utcnow().strftime('%b %d')}",
+            title=f"🏆 {comp_name} Stats Leaderboard — {datetime.utcnow().strftime('%b %d')}",
             url="https://www.fifa.com/worldcup/" if comp_id == 2000 else "",
             source="Football-Data.org",
             published=datetime.utcnow(),
