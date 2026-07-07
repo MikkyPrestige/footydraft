@@ -16,6 +16,16 @@ import sentry_sdk
 from config.settings import SENTRY_DSN
 sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
 
+LEADERBOARD_COMPETITIONS = [
+    ("World Cup", 2000),
+    ("Premier League", 2021),
+    ("La Liga", 2014),
+    ("Bundesliga", 2002),
+    ("Serie A", 2019),
+    ("Ligue 1", 2015),
+    ("Champions League", 2001),
+]
+
 MAX_ITEMS_PER_SOURCE = 5
 MAX_LLM_CALLS_PER_CYCLE = 6
 MAX_AGE_HOURS = 12  # hours
@@ -114,7 +124,7 @@ async def fetch_all_and_process():
             llm_calls += 3
 
 async def fetch_and_draft_leaderboards():
-    """Fetch World Cup top scorers from football-data.org and create a draft."""
+    """Fetch top scorers & assists for all active competitions and create drafts."""
     import os
     import requests
     from core.ingestion.base import NewsItem
@@ -125,57 +135,58 @@ async def fetch_and_draft_leaderboards():
         print("📊 Leaderboard: No FOOTBALL_DATA_KEY set.")
         return
 
-    try:
-        resp = requests.get(
-            "https://api.football-data.org/v4/competitions/2000/scorers",
-            headers={"X-Auth-Token": key},
-            timeout=15
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception as e:
-        print(f"📊 Leaderboard fetch failed: {e}")
-        return
+    for comp_name, comp_id in LEADERBOARD_COMPETITIONS:
+        try:
+            resp = requests.get(
+                f"https://api.football-data.org/v4/competitions/{comp_id}/scorers",
+                headers={"X-Auth-Token": key},
+                timeout=15
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print(f"📊 {comp_name} leaderboard fetch failed: {e}")
+            continue
 
-    scorers = data.get("scorers", [])
-    if not scorers:
-        print("📊 Leaderboard: No scorer data available.")
-        return
+        scorers = data.get("scorers", [])
+        if not scorers:
+            print(f"📊 {comp_name}: No scorer data available — skipping.")
+            continue
 
-    lines = ["🏆 FIFA World Cup 2026 — Top Scorers & Assists", ""]
+        lines = [f"🏆 {comp_name} — Top Scorers & Assists", ""]
 
-    # ⚽ Top Scorers (already sorted by goals)
-    lines.append("⚽ Top Scorers:")
-    for i, s in enumerate(scorers[:10], start=1):
-        name = s["player"]["name"]
-        goals = s.get("goals", 0)
-        lines.append(f"{i}. {name} — {goals} goals")
-    lines.append("")
-
-    # 🅰️ Top Assists (sort by assists descending)
-    by_assists = sorted(
-        [s for s in scorers if s.get("assists")],
-        key=lambda x: x["assists"],
-        reverse=True
-    )[:5]
-    if by_assists:
-        lines.append("🅰️ Top Assists:")
-        for i, s in enumerate(by_assists, start=1):
+        # Top Scorers
+        lines.append("⚽ Top Scorers:")
+        for i, s in enumerate(scorers[:10], start=1):
             name = s["player"]["name"]
-            assists = s["assists"]
-            lines.append(f"{i}. {name} — {assists} assists")
+            goals = s.get("goals", 0)
+            lines.append(f"{i}. {name} — {goals} goals")
         lines.append("")
 
-    raw = "\n".join(lines)
-    item = NewsItem(
-        title="🏆 WC 2026 Top Scorers & Assists",
-        url="https://www.fifa.com/worldcup/",
-        source="Football-Data.org",
-        published=datetime.utcnow(),
-        raw_text=raw
-    )
-    await process_item(item)
-    print("📊 Leaderboard draft created.")
+        # Top Assists
+        by_assists = sorted(
+            [s for s in scorers if s.get("assists")],
+            key=lambda x: x["assists"],
+            reverse=True
+        )[:5]
+        if by_assists:
+            lines.append("🅰️ Top Assists:")
+            for i, s in enumerate(by_assists, start=1):
+                name = s["player"]["name"]
+                assists = s["assists"]
+                lines.append(f"{i}. {name} — {assists} assists")
+            lines.append("")
+
+        raw = "\n".join(lines)
+        item = NewsItem(
+            title=f"🏆 {comp_name} Top Scorers & Assists",
+            url="https://www.fifa.com/worldcup/" if comp_id == 2000 else "",
+            source="Football-Data.org",
+            published=datetime.utcnow(),
+            raw_text=raw
+        )
+        await process_item(item)
+        print(f"📊 {comp_name} leaderboard draft created.")
 
 def job():
     print("\n⏰ Running scheduled job...")
