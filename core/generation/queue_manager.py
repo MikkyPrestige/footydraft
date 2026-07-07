@@ -20,7 +20,12 @@ async def process_item(item: NewsItem) -> Draft | None:
         return None
 
     mode = get_mode_for_tag(event_tag)
-    content_type = "live" if event_tag.startswith("LIVE_") else "normal"
+    if event_tag.startswith("LIVE_"):
+        content_type = "live"
+    elif event_tag == "STAT_INSIGHT":
+        content_type = "stats"
+    else:
+        content_type = "normal"
 
     # Check daily cap for normal drafts
     if content_type == "normal":
