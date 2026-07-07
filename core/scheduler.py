@@ -188,6 +188,84 @@ async def fetch_and_draft_leaderboards():
         await process_item(item)
         print(f"📊 {comp_name} leaderboard draft created.")
 
+async def nerdy_stats_job():
+    """Analyse stored match stats and create a draft with nerdy insights."""
+    from core.database import SessionLocal
+    from core.models import MatchStats
+    from core.ingestion.base import NewsItem
+    from core.generation.queue_manager import process_item
+    from sqlalchemy import or_
+
+    with SessionLocal() as session:
+        # Get all stats from the last 7 days
+        cutoff = datetime.utcnow() - timedelta(days=7)
+        rows = session.query(MatchStats).filter(
+            MatchStats.created_at >= cutoff
+        ).all()
+
+    if not rows:
+        print("🧠 Nerdy stats: No matches in the last 7 days.")
+        return
+
+    insights = []
+    insights.append("🧠 Nerdy Stats of the Week\n")
+
+    # 1. Biggest xG overperformance (scored ≥2 more than xG)
+    best_overperform = None
+    best_diff = 0
+    for r in rows:
+        for side, goals, xg in [("home", r.home_goals, r.xg_home), ("away", r.away_goals, r.xg_away)]:
+            if xg is not None and goals - xg >= 2:
+                diff = goals - xg
+                if diff > best_diff:
+                    best_diff = diff
+                    best_overperform = (r.home_team if side == "home" else r.away_team, r, goals, xg)
+    if best_overperform:
+        team, r, goals, xg = best_overperform
+        insights.append(f"📈 xG Overperformers: {team} scored {goals} from just {xg:.2f} xG (+{best_diff:.2f}) vs {r.away_team if team == r.home_team else r.home_team}")
+
+    # 2. Possession in vain (≥60% possession but lost)
+    for r in rows:
+        if r.possession_home is not None and r.possession_away is not None:
+            if r.possession_home >= 60 and r.home_goals < r.away_goals:
+                insights.append(f"😵 Possession in vain: {r.home_team} had {r.possession_home:.0f}% possession but lost {r.home_goals}-{r.away_goals} to {r.away_team}")
+            if r.possession_away >= 60 and r.away_goals < r.home_goals:
+                insights.append(f"😵 Possession in vain: {r.away_team} had {r.possession_away:.0f}% possession but lost {r.away_goals}-{r.home_goals} to {r.home_team}")
+
+    # 3. Shot barrage (most total shots)
+    best_shots = max(rows, key=lambda r: (r.total_shots_home or 0) + (r.total_shots_away or 0), default=None)
+    if best_shots and (best_shots.total_shots_home or 0) + (best_shots.total_shots_away or 0) > 30:
+        total = (best_shots.total_shots_home or 0) + (best_shots.total_shots_away or 0)
+        insights.append(f"💥 Shot Barrage: {best_shots.home_team} vs {best_shots.away_team} had {total} total shots")
+
+    # 4. Passing masterclass (most total passes)
+    best_passes = max(rows, key=lambda r: (r.passes_home or 0) + (r.passes_away or 0), default=None)
+    if best_passes and (best_passes.passes_home or 0) + (best_passes.passes_away or 0) > 1000:
+        total_p = (best_passes.passes_home or 0) + (best_passes.passes_away or 0)
+        insights.append(f"🎯 Passing Masterclass: {best_passes.home_team} vs {best_passes.away_team} combined {total_p} passes")
+
+    # 5. xG shutout (won with opponent xG ≤ 0.5)
+    for r in rows:
+        if r.home_goals > r.away_goals and r.xg_away is not None and r.xg_away <= 0.5:
+            insights.append(f"🔒 xG Shutout: {r.home_team} beat {r.away_team} {r.home_goals}-{r.away_goals}, conceding only {r.xg_away:.2f} xG")
+        if r.away_goals > r.home_goals and r.xg_home is not None and r.xg_home <= 0.5:
+            insights.append(f"🔒 xG Shutout: {r.away_team} beat {r.home_team} {r.away_goals}-{r.home_goals}, conceding only {r.xg_home:.2f} xG")
+
+    if len(insights) == 1:
+        print("🧠 Nerdy stats: No unusual findings this week.")
+        return
+
+    raw = "\n".join(insights)
+    item = NewsItem(
+        title="🧠 Nerdy Stats of the Week",
+        url="",
+        source="API-Football",
+        published=datetime.utcnow(),
+        raw_text=raw
+    )
+    await process_item(item)
+    print("🧠 Nerdy stats draft created.")
+
 def job():
     print("\n⏰ Running scheduled job...")
     try:
@@ -210,6 +288,7 @@ def main():
     schedule.every(10).minutes.do(lambda: asyncio.run(fetch_fast_feeds()))
     schedule.every().monday.at("02:00").do(lambda: asyncio.run(fetch_and_draft_leaderboards()))
     schedule.every().thursday.at("02:00").do(lambda: asyncio.run(fetch_and_draft_leaderboards()))
+    schedule.every().tuesday.at("03:00").do(lambda: asyncio.run(nerdy_stats_job()))
     schedule.every().tuesday.at("02:00").do(analytics_job)
     schedule.every().day.at("03:00").do(daily_backup_job)
     print("Scheduler started — news every 30 min, analytics on Monday 02:00.")
