@@ -8,36 +8,44 @@ Over time, it learns from your engagement metrics to refine its writing style - 
 
 ## ✨ Features
 
-- **Real‑time news ingestion** (RSS, Reddit, Google News, API‑Football) - 100% free
-- **Interactive Streamlit Dashboard** – view drafts, performance analytics, source health, rules, and backups in one place
-- **Hybrid tweet drafting** with three personas (pundit, fan, analyst)
-- **Three variants per normal event**, one per live match event
-- **Telegram bot** for reviewing, copying, and tracking drafts
-- **Manual feedback loop** - enter tweet engagement metrics without the X API
-- **Optional Xquik posting** - publish approved drafts only when `XQUIK_POSTING_ENABLED=1`
-- **Automatic database backups** – compressed backup on every boot and nightly at 3 AM UTC (Dropbox primary, Telegram secondary)
-- **Real‑time error tracking** – Sentry integration to monitor crashes and bugs
-- **Built‑in uptime monitor** – `/uptime` command shows how long the bot has been running (WAT)
-- **Gated database restore** – `/restore` command with one‑time code, backup file picker, and automatic staging
-- **Safe remote restart** – `/restart` with two‑step confirmation, no computer needed
-- **Weekly analytics** that suggest style improvements based on your best‑performing tweets
-- **Deduplication & age filters** to avoid stale or repeated content
-- **Deployable 24/7** on Fly.io (or any Docker‑compatible platform)
+1. **Real‑time news ingestion** (RSS, Reddit, Google News, API‑Football) - 100% free
+      - **Fast transfer news lane** – dedicated high‑frequency polling (every 10 minutes) of six fast‑updating RSS feeds for near‑real‑time transfer gossip
+      - **Post‑match & half‑time stat packs** – possession, xG, shots, passes automatically generated for every finished match
+      - **Live in‑game stat snapshots** – triggered by the first goal of each half, showing key match stats in real time
+      - **Weekly leaderboards** – top scorers & assists for the World Cup and any future league (via football‑data.org, free tier)
+      - **Nerdy stats of the week** – automatic detection of unusual match patterns (xG overperformance, possession without result, shot barrages, passing extremes, xG shutouts)
+      - **Strong freshness filter** – all news items older than 12 hours are discarded, preventing yesterday’s stories from reappearing
+2. **Interactive Streamlit Dashboard** – view drafts, performance analytics, source health, rules, and backups in one place
+3. **Hybrid tweet drafting** with three personas (pundit, fan, analyst)
+4. **Three variants per normal event**, one per live match event
+5. **Telegram bot** for reviewing, copying, and tracking drafts
+6. **Manual feedback loop** - enter tweet engagement metrics without the X API
+7. **Optional Xquik posting** - publish approved drafts only when `XQUIK_POSTING_ENABLED=1`
+8. **Automatic database backups** – compressed backup on every boot and nightly at 3 AM UTC (Dropbox primary, Telegram secondary)
+9. **Real‑time error tracking** – Sentry integration to monitor crashes and bugs
+10. **Built‑in uptime monitor** – `/uptime` command shows how long the bot has been running (WAT)
+11. **Gated database restore** – `/restore` command with one‑time code, backup file picker, and automatic staging
+12. **Safe remote restart** – `/restart` with two‑step confirmation, no computer needed
+13. **Weekly analytics** that suggest style improvements based on your best‑performing tweets
+14. **Deduplication & age filters** – 12‑hour age cutoff for RSS, Google News, and Reddit; content‑hash dedup prevents repeated drafts, with special date‑stamping for weekly recurring drafts
+15. **Deployable 24/7** on Fly.io (or any Docker‑compatible platform)
 
 ---
 
 ## 🧠 How It Works
 
-1. **News Fetchers** pull headlines from BBC, Sky Sports, ESPN, The Guardian, Daily Mail, Reddit, Google News, and live match data from API‑Football.
+1. **News Fetchers** pull headlines from BBC, Sky Sports, ESPN, The Guardian, Daily Mail, Reddit, Google News, and live match data from API‑Football. A dedicated fast lane polls six transfer‑focused RSS feeds every 10 minutes. Weekly leaderboard data is sourced from football‑data.org.
 2. **Event Classifier** tags each story (goal, transfer, stats, debate, meme, etc.) using keyword rules.
 3. **Deduplication Engine** ensures the same story doesn’t generate repeated drafts within 24 hours.
 4. **Prompt Builder** combines your account’s persona, the selected mode (pundit/fan/analyst), active style rules, and your top‑performing tweets as few‑shot examples.
 5. **LLM Client** (Groq, free tier) generates tweet drafts.
 6. **Telegram Bot** shows pending drafts in a queue with inline “Copy” buttons, optional `/postx` publishing, and instant live‑event drafts.
 7. **Analytics Engine** runs weekly, identifies patterns in your engagement data, and suggests natural‑language rules you can approve or reject.
-8. **Backup Engine** – automatically creates a gzipped database backup on every machine restart and daily at 3 AM UTC, uploading to Dropbox (primary) and Telegram (secondary).
-9. **Monitoring** – the `/uptime` command shows the bot’s start time and elapsed uptime; Sentry integration tracks errors in real time.
-10. **Recovery** – the `/restore` command uses a gated one‑time code to list the last 5 backups from Dropbox, then stages the selected backup; a `/restart` reboot applies it automatically.
+8. **Stats Engine** – after every full‑time whistle, match statistics are stored in the database. A weekly job analyses the accumulated data and creates a ‘Nerdy Stats of the Week’ draft highlighting unusual patterns.
+9. **Leaderboard Engine** – twice a week, top scorers and assist leaders are fetched from football‑data.org and turned into a combined draft. Inactive leagues are automatically skipped.
+10. **Backup Engine** – automatically creates a gzipped database backup on every machine restart and daily at 3 AM UTC, uploading to Dropbox (primary) and Telegram (secondary).
+11. **Monitoring** – the `/uptime` command shows the bot’s start time and elapsed uptime; Sentry integration tracks errors in real time.
+12. **Recovery** – the `/restore` command uses a gated one‑time code to list the last 5 backups from Dropbox, then stages the selected backup; a `/restart` reboot applies it automatically.
 
 ---
 
@@ -108,9 +116,9 @@ football-x-agent/
 
 ### Prerequisites
 - Python 3.11+
-- A **Groq** API key (free tier)
-- A **Telegram bot token** (from [@BotFather](https://t.me/BotFather))
-- (Optional) API‑Football key for live match data (free tier)
+- **Groq** API key
+- **Telegram bot token** (from [@BotFather](https://t.me/BotFather))
+- **API‑Football key** for live match data
 
 ### 1. Clone & set up environment
 ```bash
@@ -243,6 +251,12 @@ FLY_MACHINE_ID = "your_machine_id"
 
 6. Click Deploy.
 
+The dashboard is **password‑protected**. On first visit you’ll see a login screen. After entering the correct password (set via `PASSWORD` secret in Streamlit Cloud), the session persists across page refreshes.
+
+Use this command to add the dashboard password to your Fly.io secrets:
+```bash
+flyctl secrets set PASSWORD=your‑chosen‑password -a football-x-agent
+```
 > The dashboard will be available at https://your-app-name.streamlit.app
 
 ---
@@ -256,7 +270,8 @@ All important settings are in `config/settings.py` and can be overridden with en
 | `OPENAI_API_KEY` | – | API key (Groq or any OpenAI‑compatible provider) |
 | `TELEGRAM_BOT_TOKEN` | – | Telegram bot token |
 | `GROQ_API_KEY` | – | Groq API key (fallback) |
-| `API_FOOTBALL_KEY` | – | API‑Football key (optional) |
+| `API_FOOTBALL_KEY` | – | API‑Football key |
+| `FOOTBALL_DATA_KEY` | – | API key for football‑data.org – required for weekly leaderboards |
 | `DATABASE_URL` | `sqlite:///data/agent.db` | DB connection string |
 | `XQUIK_POSTING_ENABLED` | `0` | Set to `1` to enable `/postx` publishing |
 | `XQUIK_API_KEY` | – | Xquik API key used by `/postx` |
@@ -307,7 +322,9 @@ flyctl machines list -a football-x-agent
 python -m tests.test_rss_fetcher
 python -m tests.test_llm_client
 python -m tests.test_queue_manager
-# … and more under tests/
+python -m tests.test_personas
+python -m tests.test_prompt_builder
+## more in the tests/ folder
 ```
 
 ---
@@ -315,7 +332,6 @@ python -m tests.test_queue_manager
 ## 🗺 Roadmap / Future
 
 - [ ] Optional scheduled auto‑posting with kill‑switch
-- [ ] More news sources (Livescore, OneFootball)
 - [ ] Multi‑language support
 
 ---
