@@ -1,4 +1,6 @@
 """Assembles the system + user prompts for draft generation."""
+from curses import raw
+
 import yaml
 from datetime import datetime, timedelta
 from sqlalchemy import desc
@@ -27,32 +29,32 @@ def get_mode_for_tag(event_tag: str) -> str:
 def build_prompt(item: NewsItem, event_tag: str, mode: str = None) -> tuple[str, str]:
     """
     Build system prompt and user prompt for a given news item and event tag.
-    
+
     Args:
         item: The NewsItem to generate a tweet for.
         event_tag: The classified event type (e.g., LIVE_GOAL, TRANSFER).
         mode: Optionally force a specific persona mode. If None, derived from tag.
-    
+
     Returns:
         (system_prompt, user_prompt) as strings.
     """
     if mode is None:
         mode = get_mode_for_tag(event_tag)
-    
+
     # Base identity + mode-specific prompt
     mode_prompt = MODES[mode]["prompt"]
     system = BASE_IDENTITY.strip() + "\n\n" + mode_prompt.strip()
     # Add current date and hard rule to prevent hallucination
     today = datetime.utcnow().strftime("%d %B %Y")
     system += f"\n\nToday is {today}. Only use information present in the news item title or raw text. Do not mention players, managers, or events that are not explicitly mentioned in the item. Do not assume any current state of clubs or players based on your training data. The UEFA Champions League no longer drops eliminated teams into the Europa League."
-    
+
     # Add active rules from database
     with SessionLocal() as session:
         active_rules = session.query(Rule).filter_by(active=True).all()
         if active_rules:
             rules_text = "\n".join([f"- {r.rule_text}" for r in active_rules])
             system += "\n\nStyle guidelines:\n" + rules_text
-    
+
     # Fetch top few-shot examples for this content type
     content_type = "live" if event_tag.startswith("LIVE_") else "normal"
     with SessionLocal() as session:
@@ -70,7 +72,11 @@ def build_prompt(item: NewsItem, event_tag: str, mode: str = None) -> tuple[str,
         if top_tweets:
             examples = "\n".join([f"Example: {t.text}" for t in top_tweets])
             system += "\n\nFor reference, here are your best recent tweets in this category:\n" + examples
-    
+
     # User prompt: simple instruction with the event
-    user = f"Latest event: {item.title}\n\nWrite a tweet."
+    raw = item.raw_text.strip() if item.raw_text else ""
+    if raw:
+        user = f"Latest event: {item.title}\n\nDetails:\n{raw}\n\nWrite a tweet."
+    else:
+        user = f"Latest event: {item.title}\n\nWrite a tweet."
     return system, user
