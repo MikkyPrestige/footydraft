@@ -1,8 +1,6 @@
-# ⚽ Football X Agent
+# ⚽ FootyDrafts
 
-An AI powered assistant that helps you run a high‑quality, on‑trend football Twitter (X) account.
-It continuously monitors **free** news sources, generates context‑aware tweet drafts using a large language model, and delivers them to you via a Telegram bot for manual review, copying, and optional Xquik posting.
-Over time, it learns from your engagement metrics to refine its writing style - all while keeping **you** in full control.
+**FootyDrafts** is a Telegram‑first bot that uses AI to help you run a high quality, on‑trend football Twitter (X) account. It continuously monitors news sources, fetches live match statistics, generates context‑aware tweet drafts (news, stats, and insights) using a large language model, and delivers them to you via a Telegram bot for manual review, copying, and optional Xquik posting. Over time, it learns from your engagement metrics to refine its writing style – all while keeping you in full control.
 
 ---
 
