@@ -101,20 +101,51 @@ class APIFootballFetcher(BaseFetcher):
 
                     if event_type == "Goal":
                         title = f"⚽ GOAL! {team} {detail} – {home} vs {away} ({minute}')"
-                    elif event_type in ("Card", "Yellow Card", "Red Card"):
-                        title = f"🟨 CARD: {player} ({team}) – {home} vs {away}"
-                    elif event_type == "subst":
-                        title = f"↔️ SUB: {player} – {home} vs {away}"
-                    else:
-                        continue
+                        items.append(NewsItem(
+                            title=title,
+                            url=f"https://www.flashscore.com/match/{fixture_id}",
+                            source="API-Football",
+                            published=datetime.utcnow(),
+                            raw_text=f"{event_type} by {player} at {minute}'"
+                        ))
 
-                    items.append(NewsItem(
-                        title=title,
-                        url=f"https://www.flashscore.com/match/{fixture_id}",
-                        source="API-Football",
-                        published=datetime.utcnow(),
-                        raw_text=f"{event_type} by {player} at {minute}'"
-                    ))
+                        # Trigger live stats snapshot if first goal of this half
+                        half_tag = "1H" if status == "1H" else "2H"
+                        if self._live_goal_stats_allowed(fixture_id, half_tag):
+                            try:
+                                stats_data = await asyncio.to_thread(
+                                    self._get_json,
+                                    f"{BASE_URL}/fixtures/statistics?fixture={fixture_id}"
+                                )
+                                stats_raw = stats_data.get("response", [])
+                                if stats_raw:
+                                    lines = [f"📊 Live stats after {minute}'", ""]
+                                    for team_stats in stats_raw:
+                                        team_name = team_stats["team"]["name"]
+                                        lines.append(f"--- {team_name} ---")
+                                        # Only take the most important stats (5 per team)
+                                        key_stats = [s for s in team_stats.get("statistics", [])
+                                                     if s["type"] in ("Ball Possession", "Shots on Goal", "Total Shots",
+                                                                        "expected_goals", "Corner Kicks")][:5]
+                                        for stat in key_stats:
+                                            stat_name = stat.get("type", "")
+                                            stat_value = stat.get("value", "")
+                                            if stat_value is not None:
+                                                lines.append(f"{stat_name}: {stat_value}")
+                                        lines.append("")
+                                    stat_text = "\n".join(lines)
+
+                                    items.append(NewsItem(
+                                        title=f"📊 Live Stat Snapshot: {home} vs {away}",
+                                        url=f"https://www.flashscore.com/match/{fixture_id}",
+                                        source="API-Football Stats",
+                                        published=datetime.utcnow(),
+                                        raw_text=stat_text
+                                    ))
+                                    self._mark_live_goal_stats_done(fixture_id, half_tag)
+                            except Exception:
+                                # Silently skip if stats fetch fails
+                                pass
 
                 if status in ("1H", "HT", "2H", "FT"):
                     items.append(NewsItem(
@@ -261,3 +292,11 @@ class APIFootballFetcher(BaseFetcher):
                 session.commit()
         except Exception:
             pass
+
+    def _live_goal_stats_allowed(self, fixture_id: int, half: str) -> bool:
+        """Check if we haven't already posted live goal stats for this fixture half."""
+        return not self._stats_already_processed(fixture_id, tag=f"live_goal_{half}")
+
+    def _mark_live_goal_stats_done(self, fixture_id: int, half: str):
+        """Record that live stats were posted for this half."""
+        self._mark_stats_processed(fixture_id, tag=f"live_goal_{half}")
