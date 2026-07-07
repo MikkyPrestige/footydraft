@@ -179,7 +179,7 @@ async def fetch_and_draft_leaderboards():
 
         raw = "\n".join(lines)
         item = NewsItem(
-            title=f"🏆 {comp_name} Top Scorers & Assists",
+            title=f"🏆 {comp_name} Top Scorers & Assists — {datetime.utcnow().strftime('%b %d')}",
             url="https://www.fifa.com/worldcup/" if comp_id == 2000 else "",
             source="Football-Data.org",
             published=datetime.utcnow(),
@@ -257,7 +257,7 @@ async def nerdy_stats_job():
 
     raw = "\n".join(insights)
     item = NewsItem(
-        title="🧠 Nerdy Stats of the Week",
+        title=f"🧠 Nerdy Stats of the Week — {datetime.utcnow().strftime('%b %d')}",
         url="",
         source="API-Football",
         published=datetime.utcnow(),
