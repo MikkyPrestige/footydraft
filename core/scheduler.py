@@ -113,6 +113,56 @@ async def fetch_all_and_process():
             await process_item(item)
             llm_calls += 3
 
+async def fetch_and_draft_leaderboards():
+    """Fetch World Cup top scorers from football-data.org and create a draft."""
+    import os
+    import requests
+    from core.ingestion.base import NewsItem
+    from core.generation.queue_manager import process_item
+
+    key = os.getenv("FOOTBALL_DATA_KEY")
+    if not key:
+        print("📊 Leaderboard: No FOOTBALL_DATA_KEY set.")
+        return
+
+    try:
+        resp = requests.get(
+            "https://api.football-data.org/v4/competitions/2000/scorers",
+            headers={"X-Auth-Token": key},
+            timeout=15
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        print(f"📊 Leaderboard fetch failed: {e}")
+        return
+
+    scorers = data.get("scorers", [])
+    if not scorers:
+        print("📊 Leaderboard: No scorer data available.")
+        return
+
+    lines = ["🏆 FIFA World Cup 2026 — Top Scorers", ""]
+    for i, s in enumerate(scorers[:10], start=1):
+        name = s["player"]["name"]
+        goals = s.get("goals", 0)
+        assists = s.get("assists") or 0
+        line = f"{i}. {name} — {goals}⚽"
+        if assists:
+            line += f" {assists}🅰️"
+        lines.append(line)
+
+    raw = "\n".join(lines)
+    item = NewsItem(
+        title="🏆 WC 2026 Top Scorers",
+        url="https://www.fifa.com/worldcup/",
+        source="Football-Data.org",
+        published=datetime.utcnow(),
+        raw_text=raw
+    )
+    await process_item(item)
+    print("📊 Leaderboard draft created.")
+
 def job():
     print("\n⏰ Running scheduled job...")
     try:
@@ -133,6 +183,8 @@ def analytics_job():
 def main():
     schedule.every(30).minutes.do(job)
     schedule.every(10).minutes.do(lambda: asyncio.run(fetch_fast_feeds()))
+    schedule.every().monday.at("02:00").do(lambda: asyncio.run(fetch_and_draft_leaderboards()))
+    schedule.every().thursday.at("02:00").do(lambda: asyncio.run(fetch_and_draft_leaderboards()))
     schedule.every().tuesday.at("02:00").do(analytics_job)
     schedule.every().day.at("03:00").do(daily_backup_job)
     print("Scheduler started — news every 30 min, analytics on Monday 02:00.")
