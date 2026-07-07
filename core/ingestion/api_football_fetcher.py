@@ -1,10 +1,12 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional
 import requests
 from config.settings import API_FOOTBALL_KEY
 from core.ingestion.base import BaseFetcher, NewsItem
 from core.ingestion.monitor import record_success, record_failure
+from core.database import SessionLocal
+from core.models import EventCache
 
 BASE_URL = "https://v3.football.api-sports.io"
 HEADERS = {"x-apisports-key": API_FOOTBALL_KEY}
@@ -124,6 +126,58 @@ class APIFootballFetcher(BaseFetcher):
                     ))
 
             record_success("API-Football")
+             # --- Post‑match stat packs ---
+            for fixture in merged:
+                status = fixture["fixture"]["status"]["short"]
+                if status not in ("FT", "AET", "PEN"):
+                    continue
+                fid = fixture["fixture"]["id"]
+                if self._stats_already_processed(fid):
+                    continue
+
+                home = fixture["teams"]["home"]["name"]
+                away = fixture["teams"]["away"]["name"]
+                home_goals = fixture["goals"]["home"]
+                away_goals = fixture["goals"]["away"]
+                score = f"{home} {home_goals}-{away_goals} {away}"
+
+                try:
+                    stats_data = await asyncio.to_thread(
+                        self._get_json,
+                        f"{BASE_URL}/fixtures/statistics?fixture={fid}"
+                    )
+                    stats_raw = stats_data.get("response", [])
+                except Exception:
+                    stats_raw = []
+
+                if not stats_raw:
+                    # still mark as processed so we don't keep trying
+                    self._mark_stats_processed(fid)
+                    continue
+
+                # Build a readable stats string
+                lines = [score, ""]
+                for team_stats in stats_raw:
+                    team_name = team_stats["team"]["name"]
+                    lines.append(f"--- {team_name} ---")
+                    for stat in team_stats.get("statistics", [])[:8]:   # top 8 stats
+                        stat_name = stat.get("type", "")
+                        stat_value = stat.get("value", "")
+                        if stat_value is not None:
+                            lines.append(f"{stat_name}: {stat_value}")
+                    lines.append("")
+
+                stat_text = "\n".join(lines)
+
+                items.append(NewsItem(
+                    title=f"📊 FT Stat Pack: {home} vs {away}",
+                    url=f"https://www.flashscore.com/match/{fid}",
+                    source="API-Football Stats",
+                    published=datetime.utcnow(),
+                    raw_text=stat_text
+                ))
+
+                self._mark_stats_processed(fid)
         except Exception as e:
             record_failure("API-Football")
             print(f"API-Football fetch failed: {e}")
@@ -133,3 +187,25 @@ class APIFootballFetcher(BaseFetcher):
         resp = requests.get(url, headers=HEADERS, timeout=10)
         resp.raise_for_status()
         return resp.json()
+
+    def _stats_already_processed(self, fixture_id: int) -> bool:
+        """Check if post‑match stats have already been fetched for this fixture today."""
+        try:
+            with SessionLocal() as session:
+                exists = session.query(EventCache).filter(
+                    EventCache.event_id == f"stats_{fixture_id}",
+                    EventCache.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                ).first()
+                return exists is not None
+        except Exception:
+            return False
+
+    def _mark_stats_processed(self, fixture_id: int):
+        """Record that stats were fetched for this fixture."""
+        try:
+            with SessionLocal() as session:
+                entry = EventCache(event_id=f"stats_{fixture_id}")
+                session.add(entry)
+                session.commit()
+        except Exception:
+            pass
