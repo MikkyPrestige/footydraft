@@ -76,14 +76,9 @@ async def fetch_fast_feeds():
     relevant = [it for it in fresh if is_relevant(it)]
     print(f"  Fast feeds: {len(relevant)} relevant fresh items")
 
-    # Process up to 3 items per fast cycle to keep LLM calls low
-    llm_calls = 0
-    to_process = relevant[:3]
-    for item in to_process:
-        if llm_calls >= MAX_LLM_CALLS_PER_CYCLE:
-            break
-        await process_item(item)
-        llm_calls += 3
+    # Process only 1 item per fast cycle (keeps Groq token usage safe)
+    if relevant:
+        await process_item(relevant[0])
 
 async def fetch_all_and_process():
     fetchers = [
@@ -285,7 +280,7 @@ def analytics_job():
 
 def main():
     schedule.every(30).minutes.do(job)
-    schedule.every(10).minutes.do(lambda: asyncio.run(fetch_fast_feeds()))
+    schedule.every(15).minutes.do(lambda: asyncio.run(fetch_fast_feeds()))
     schedule.every().monday.at("02:00").do(lambda: asyncio.run(fetch_and_draft_leaderboards()))
     schedule.every().thursday.at("02:00").do(lambda: asyncio.run(fetch_and_draft_leaderboards()))
     schedule.every().tuesday.at("03:00").do(lambda: asyncio.run(nerdy_stats_job()))
