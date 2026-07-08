@@ -3,16 +3,15 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 import sentry_sdk
 from config.settings import SENTRY_DSN
 sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
-
 from datetime import datetime
-from config.settings import TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, XQUIK_POSTING_ENABLED
+from config.settings import TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID
 from bot.handlers import (
-    clearqueue,
-    drafts_cmd,
-    hold_draft,
-    release_draft,
-    start, queue_callback, stats, rules, addrule, source_status,
-    posted, postx, metrics, button_handler, livecheck, tweets_cmd, impressions_cmd, uptime_cmd, set_bot_start_time, restore_cmd, restart_cmd
+    clearqueue, drafts_cmd, hold_draft, release_draft,
+    start, queue_callback, stats,leaderboard_command,
+    nerdystats_command, rules, addrule, source_status,
+    posted, postx, metrics, button_handler, livecheck,
+    tweets_cmd, impressions_cmd, uptime_cmd, set_bot_start_time,
+    restore_cmd, restart_cmd
 )
 
 async def push_live_drafts(context):
@@ -60,6 +59,8 @@ def main():
     app.add_handler(CommandHandler("postx", postx))
     app.add_handler(CommandHandler("metrics", metrics))
     app.add_handler(CommandHandler("stats", stats))
+    app.add_handler(CommandHandler("leaderboard", leaderboard_command))
+    app.add_handler(CommandHandler("nerdystats", nerdystats_command))
     app.add_handler(CommandHandler("rules", rules))
     app.add_handler(CommandHandler("addrule", addrule))
     app.add_handler(CommandHandler("source_status", source_status))
@@ -68,11 +69,10 @@ def main():
     app.add_handler(CommandHandler("impressions", impressions_cmd))
     app.add_handler(CommandHandler("clearqueue", clearqueue))
     app.add_handler(CallbackQueryHandler(button_handler))
-
-    # Live-draft push job (every 20 seconds, first run after 5 seconds)
     app.add_handler(CommandHandler("uptime", uptime_cmd))
     app.add_handler(CommandHandler("restore", restore_cmd))
     app.add_handler(CommandHandler("restart", restart_cmd))
+    # Live-draft push job (every 20 seconds, first run after 5 seconds)
     app.job_queue.run_repeating(push_live_drafts, interval=20, first=5)
 
     print("Bot polling...")

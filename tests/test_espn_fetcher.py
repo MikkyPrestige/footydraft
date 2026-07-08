@@ -1,3 +1,4 @@
+"""Quick manual test for ESPNFetcher. Run with: python -m tests.test_espn_fetcher"""
 import asyncio
 from core.ingestion.espn_fetcher import ESPNFetcher
 

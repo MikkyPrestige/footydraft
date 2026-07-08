@@ -1,11 +1,12 @@
-from config.settings import XQUIK_POSTING_ENABLED
 """Telegram command handlers."""
+import asyncio
+from config.settings import XQUIK_POSTING_ENABLED
 from datetime import datetime, timedelta
 from sqlalchemy import desc
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from core.database import SessionLocal
+from core.scheduler import fetch_and_draft_leaderboards, nerdy_stats_job
 from core.models import Draft, Tweet, Rule, SourceHealth
 from core.publishing.xquik import XquikPublishError, publish_tweet
 from bot.keyboard import copy_buttons
@@ -18,8 +19,9 @@ def set_bot_start_time(t):
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a welcome message and list available commands."""
     await update.message.reply_text(
-        "⚽ Welcome to your Football Twitter Agent!\n\n"
+        "⚽ Welcome to FootyDraft!\n\n"
         "I'll push live match events and keep a queue of normal drafts for you to review.\n\n"
         "Commands:\n"
         "/queue - View pending drafts (all/live/normal, page)\n"
@@ -99,6 +101,7 @@ async def queue_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
 async def posted(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually mark a draft as posted and link it to a tweet ID or URL."""
     if not context.args:
         await update.message.reply_text("Usage: /posted <draft_id> [tweet_url_or_id]")
         return
@@ -133,6 +136,7 @@ async def posted(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def postx(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Post a draft via Xquik and record the tweet ID."""
     if not XQUIK_POSTING_ENABLED:
         await update.message.reply_text("❌ Xquik posting is not enabled. Set XQUIK_POSTING_ENABLED=1 to use this feature.")
         return
@@ -196,6 +200,7 @@ async def postx(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def metrics(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually enter engagement metrics for a posted tweet."""
     if len(context.args) != 5:
         await update.message.reply_text("Usage: /metrics <tweet_ref> <likes> <retweets> <replies> <impressions>")
         return
@@ -221,6 +226,7 @@ async def metrics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show top & bottom tweets by likes or impressions in the last 7 days."""
     option = (context.args[0].lower() if context.args else 'likes')
     with SessionLocal() as session:
         cutoff = datetime.utcnow() - timedelta(days=7)
@@ -266,7 +272,22 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += f"{i}. {t.text[:60]}...  {heart} {val(t)}\n"
 
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually trigger the leaderboard draft generation."""
+    await update.message.reply_text("📊 Fetching latest leaderboard…")
+    asyncio.create_task(fetch_and_draft_leaderboards())
+    await update.message.reply_text("Leaderboard draft will appear in the queue shortly.")
+
+
+async def nerdystats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually trigger the nerdy stats of the week."""
+    await update.message.reply_text("🧠 Crunching nerdy stats…")
+    asyncio.create_task(nerdy_stats_job())
+    await update.message.reply_text("Nerdy stats draft will appear in the queue shortly.")
+
 async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show active rules and suggested rules (auto) with Accept/Reject buttons."""
     with SessionLocal() as session:
         active_rules = session.query(Rule).filter_by(active=True).all()
         suggested = session.query(Rule).filter_by(active=False, source="auto").all()
@@ -292,6 +313,7 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def addrule(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Add a manual rule to the database and mark it as active."""
     text = " ".join(context.args)
     if not text:
         await update.message.reply_text("Usage: /addrule <rule text>")
@@ -303,6 +325,7 @@ async def addrule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Rule added and active: {text}")
 
 async def source_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show the health status of all news sources."""
     with SessionLocal() as session:
         sources = session.query(SourceHealth).all()
     if not sources:
@@ -314,8 +337,8 @@ async def source_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f"{icon} {s.source_name} – last success: {s.last_success}\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
-
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle callback queries from inline buttons (queue, drafts, copy, rules)."""
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -502,6 +525,7 @@ async def hold_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
         draft.status = "held"
         session.commit()
     await update.message.reply_text(f"📥 Draft #{draft_id} moved to held.")
+
 async def release_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Move a held draft back to pending."""
     if not context.args:
@@ -557,8 +581,6 @@ async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]])
 
         await update.message.reply_text(msg, reply_markup=keyboard)
-
-
 
 async def uptime_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show bot start time and elapsed uptime."""
