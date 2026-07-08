@@ -1,6 +1,6 @@
-# ⚽ FootyDrafts
+# ⚽ FootyDraft
 
-**FootyDrafts** is a Telegram‑first bot that uses AI to help you run a high quality, on‑trend football Twitter (X) account. It continuously monitors news sources, fetches live match statistics, generates context‑aware tweet drafts (news, stats, and insights) using a large language model, and delivers them to you via a Telegram bot for manual review, copying, and optional Xquik posting. Over time, it learns from your engagement metrics to refine its writing style – all while keeping you in full control.
+**FootyDraft** is a Telegram‑first bot that uses AI to help you run a high quality, on‑trend football Twitter (X) account. It continuously monitors news sources, fetches live match statistics, generates context‑aware tweet drafts (news, stats, and insights) using a large language model, and delivers them to you via a Telegram bot for manual review, copying, and optional Xquik posting. Over time, it learns from your engagement metrics to refine its writing style – all while keeping you in full control.
 
 ---
 
@@ -50,7 +50,7 @@
 ## 🏗 Architecture
 
 ```
-football-x-agent/
+footydraft/
 ├── config/
 │   ├── settings.py          # Environment variables & constants
 │   └── personas.yaml        # Persona definitions (pundit, fan, analyst)
@@ -120,8 +120,8 @@ football-x-agent/
 
 ### 1. Clone & set up environment
 ```bash
-git clone https://github.com/MikkyPrestige/football-x-agent.git
-cd football-x-agent
+git clone https://github.com/MikkyPrestige/footydraft.git
+cd footydraft
 python -m venv venv
 source venv/bin/activate   # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
@@ -210,12 +210,12 @@ It runs both the scheduler and the Telegram bot in a single small VM (~$1.94/mon
 2. Log in: `flyctl auth login`
 3. Create the app & volume (run inside the project folder):
    ```bash
-   flyctl apps create football-x-agent --yes
-   flyctl volumes create agent_data --region iad --size 1 -a football-x-agent
+   flyctl apps create footydraft --yes
+   flyctl volumes create agent_data --region iad --size 1 -a footydraft
    ```
-4. Set secrets (replace with your values): `flyctl secrets set OPENAI_API_KEY="sk-..." TELEGRAM_BOT_TOKEN="123:abc" ... -a football-x-agent`
-5. Deploy: `flyctl deploy -a football-x-agent`
-6. Check logs: `flyctl logs -a football-x-agent`
+4. Set secrets (replace with your values): `flyctl secrets set OPENAI_API_KEY="sk-..." TELEGRAM_BOT_TOKEN="123:abc" ... -a footydraft`
+5. Deploy: `flyctl deploy -a footydraft`
+6. Check logs: `flyctl logs -a footydraft`
 
 > Your bot will now run 24/7 without needing your computer.
 
@@ -243,7 +243,7 @@ XQUIK_POSTING_ENABLED = "1"
 
 # Required if using Xquik toggle (optional)
 FLY_API_TOKEN = "your_token"
-FLY_APP_NAME = "football-x-agent"
+FLY_APP_NAME = "footydraft"
 FLY_MACHINE_ID = "your_machine_id"
 ```
 
@@ -253,7 +253,7 @@ The dashboard is **password‑protected**. On first visit you’ll see a login s
 
 Use this command to add the dashboard password to your Fly.io secrets:
 ```bash
-flyctl secrets set PASSWORD=your‑chosen‑password -a football-x-agent
+flyctl secrets set PASSWORD=your‑chosen‑password -a footydraft
 ```
 > The dashboard will be available at https://your-app-name.streamlit.app
 
@@ -293,19 +293,19 @@ Xquik posting allows the bot to automatically post tweets to X (Twitter). This i
 
 **Enable Xquik**
 ```bash
-flyctl secrets set XQUIK_POSTING_ENABLED=1 -a football-x-agent
-flyctl machines restart <machine_id> -a football-x-agent
+flyctl secrets set XQUIK_POSTING_ENABLED=1 -a footydraft
+flyctl machines restart <machine_id> -a footydraft
 ```
 
 **Disable Xquik**
 ```bash
-flyctl secrets set XQUIK_POSTING_ENABLED=0 -a football-x-agent
-flyctl machines restart <machine_id> -a football-x-agent
+flyctl secrets set XQUIK_POSTING_ENABLED=0 -a footydraft
+flyctl machines restart <machine_id> -a footydraft
 ```
 
 **Get machine ID**
 ```bash
-flyctl machines list -a football-x-agent
+flyctl machines list -a footydraft
 ```
 
 > The `/postx` command in the Telegram bot will only work when `XQUIK_POSTING_ENABLED=1`

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Football Twitter Agent startup
 
-echo "Starting Football Twitter Agent..."
+echo "Starting FootyDraft..."
 
 # Remove stale backup lock file (if any)
 rm -f /app/data/backups/backup.lock

@@ -1,4 +1,4 @@
-app = "football-x-agent"
+app = "footydraft"
 
 [build]
   dockerfile = "Dockerfile"
