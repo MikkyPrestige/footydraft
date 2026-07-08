@@ -1,4 +1,4 @@
-"""FootyDrafts – Streamlit Dashboard (multi‑page)."""
+"""FootyDraft – Streamlit Dashboard (multi‑page)."""
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -8,7 +8,7 @@ os.makedirs("/tmp/data", exist_ok=True)
 from dashboard.ui_components import apply_global_styles, render_sidebar, require_auth
 
 st.set_page_config(
-    page_title="FootyDrafts Dashboard",
+    page_title="FootyDraft Dashboard",
     layout="wide",
     page_icon="dashboard/static/favicon.ico"
 )
@@ -19,7 +19,7 @@ render_sidebar()
 require_auth()
 
 # --- Main Home Page Content ---
-st.markdown('<div class="dashboard-title">FootyDrafts Dashboard</div>', unsafe_allow_html=True)
+st.markdown('<div class="dashboard-title">FootyDraft Dashboard</div>', unsafe_allow_html=True)
 
 # Status badge
 if st.session_state.get("backup_loaded"):
