@@ -3,6 +3,8 @@ import asyncio
 import time
 import schedule
 import random
+import os, requests
+import sentry_sdk
 from datetime import datetime, timedelta
 from core.ingestion.rss_fetcher import RSSFetcher, FAST_FEEDS
 from core.ingestion.reddit_fetcher import RedditFetcher
@@ -12,7 +14,11 @@ from core.ingestion.espn_fetcher import ESPNFetcher
 from core.generation.queue_manager import process_item
 from core.analytics.engine import run_weekly_analytics
 from core.backup import daily_backup as daily_backup_job
-import sentry_sdk
+from core.ingestion.base import NewsItem
+from core.generation.llm_client import generate_tweet
+from core.generation.prompt_builder import build_prompt, get_mode_for_tag
+from core.models import Draft, MatchStats
+from core.database import SessionLocal
 from config.settings import SENTRY_DSN
 sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
 
@@ -118,18 +124,14 @@ async def fetch_all_and_process():
             await process_item(item)
             llm_calls += 3
 
-async def fetch_and_draft_leaderboards():
-    """Fetch top scorers & assists for all active competitions and create drafts."""
-    import os
-    import requests
-    from core.ingestion.base import NewsItem
-    from core.generation.queue_manager import process_item
-
+async def fetch_and_draft_leaderboards() -> Draft | None:
+    """Fetch World Cup top scorers & assists, generate a draft directly (no dedup)."""
     key = os.getenv("FOOTBALL_DATA_KEY")
     if not key:
         print("📊 Leaderboard: No FOOTBALL_DATA_KEY set.")
-        return
+        return None
 
+    # Fetch data for each active competition (currently only World Cup)
     for comp_name, comp_id in LEADERBOARD_COMPETITIONS:
         try:
             resp = requests.get(
@@ -145,20 +147,16 @@ async def fetch_and_draft_leaderboards():
 
         scorers = data.get("scorers", [])
         if not scorers:
-            print(f"📊 {comp_name}: No scorer data available — skipping.")
             continue
 
+        # Build raw text as before
         lines = [f"🏆 {comp_name} — Top Scorers & Assists", ""]
-
-        # Top Scorers
         lines.append("⚽ Top Scorers:")
         for i, s in enumerate(scorers[:10], start=1):
             name = s["player"]["name"]
             goals = s.get("goals", 0)
             lines.append(f"{i}. {name} — {goals} goals")
         lines.append("")
-
-        # Top Assists
         by_assists = sorted(
             [s for s in scorers if s.get("assists")],
             key=lambda x: x["assists"],
@@ -173,27 +171,47 @@ async def fetch_and_draft_leaderboards():
             lines.append("")
 
         raw = "\n".join(lines)
+
+        # Create a NewsItem to reuse the prompt builder (but we'll generate directly)
         item = NewsItem(
             title=f"🏆 {comp_name} Stats Leaderboard — {datetime.utcnow().strftime('%b %d')}",
-            url="https://www.fifa.com/worldcup/" if comp_id == 2000 else "",
+            url="",
             source="Football-Data.org",
             published=datetime.utcnow(),
             raw_text=raw
         )
-        draft = await process_item(item)
-        print(f"📊 {comp_name} leaderboard draft created.")
-        return draft  # <-- return the last created draft (or the only one)
+        event_tag = "STAT_INSIGHT"
+        mode = get_mode_for_tag(event_tag)
 
-async def nerdy_stats_job():
-    """Analyse stored match stats and create a draft with nerdy insights."""
-    from core.database import SessionLocal
-    from core.models import MatchStats
-    from core.ingestion.base import NewsItem
-    from core.generation.queue_manager import process_item
-    from sqlalchemy import or_
+        # Generate tweet variants directly (skipping dedup)
+        system_prompt, user_prompt = build_prompt(item, event_tag, mode)
+        try:
+            variants = generate_tweet(system_prompt, user_prompt, n=3)
+        except Exception as e:
+            print(f"LLM failed for leaderboard: {e}")
+            return None
 
+        # Save draft directly to DB
+        with SessionLocal() as session:
+            draft = Draft(
+                event_hash=item.title,   # temporary placeholder
+                content_type="stats",
+                persona=mode,
+                status="pending",
+                text_variants=variants,
+                selected_variant=None,
+            )
+            session.add(draft)
+            session.commit()
+            session.refresh(draft)
+            print(f"📊 {comp_name} leaderboard draft created (ID {draft.id}).")
+            return draft  # Return the first (and only active) draft
+
+    return None  # No active competition data
+
+async def nerdy_stats_job() -> Draft | None:
+    """Analyse stored match stats and create a nerdy stats draft directly (no dedup)."""
     with SessionLocal() as session:
-        # Get all stats from the last 7 days
         cutoff = datetime.utcnow() - timedelta(days=7)
         rows = session.query(MatchStats).filter(
             MatchStats.created_at >= cutoff
@@ -201,12 +219,13 @@ async def nerdy_stats_job():
 
     if not rows:
         print("🧠 Nerdy stats: No matches in the last 7 days.")
-        return
+        return None
 
     insights = []
     insights.append("🧠 Nerdy Stats of the Week\n")
 
-    # 1. Biggest xG overperformance (scored ≥2 more than xG)
+    # (same insight logic as before – keep the existing detection code)
+    # 1. Biggest xG overperformance
     best_overperform = None
     best_diff = 0
     for r in rows:
@@ -220,7 +239,7 @@ async def nerdy_stats_job():
         team, r, goals, xg = best_overperform
         insights.append(f"📈 xG Overperformers: {team} scored {goals} from just {xg:.2f} xG (+{best_diff:.2f}) vs {r.away_team if team == r.home_team else r.home_team}")
 
-    # 2. Possession in vain (≥60% possession but lost)
+    # 2. Possession in vain
     for r in rows:
         if r.possession_home is not None and r.possession_away is not None:
             if r.possession_home >= 60 and r.home_goals < r.away_goals:
@@ -228,19 +247,19 @@ async def nerdy_stats_job():
             if r.possession_away >= 60 and r.away_goals < r.home_goals:
                 insights.append(f"😵 Possession in vain: {r.away_team} had {r.possession_away:.0f}% possession but lost {r.away_goals}-{r.home_goals} to {r.home_team}")
 
-    # 3. Shot barrage (most total shots)
+    # 3. Shot barrage
     best_shots = max(rows, key=lambda r: (r.total_shots_home or 0) + (r.total_shots_away or 0), default=None)
     if best_shots and (best_shots.total_shots_home or 0) + (best_shots.total_shots_away or 0) > 30:
         total = (best_shots.total_shots_home or 0) + (best_shots.total_shots_away or 0)
         insights.append(f"💥 Shot Barrage: {best_shots.home_team} vs {best_shots.away_team} had {total} total shots")
 
-    # 4. Passing masterclass (most total passes)
+    # 4. Passing masterclass
     best_passes = max(rows, key=lambda r: (r.passes_home or 0) + (r.passes_away or 0), default=None)
     if best_passes and (best_passes.passes_home or 0) + (best_passes.passes_away or 0) > 1000:
         total_p = (best_passes.passes_home or 0) + (best_passes.passes_away or 0)
         insights.append(f"🎯 Passing Masterclass: {best_passes.home_team} vs {best_passes.away_team} combined {total_p} passes")
 
-    # 5. xG shutout (won with opponent xG ≤ 0.5)
+    # 5. xG shutout
     for r in rows:
         if r.home_goals > r.away_goals and r.xg_away is not None and r.xg_away <= 0.5:
             insights.append(f"🔒 xG Shutout: {r.home_team} beat {r.away_team} {r.home_goals}-{r.away_goals}, conceding only {r.xg_away:.2f} xG")
@@ -249,7 +268,7 @@ async def nerdy_stats_job():
 
     if len(insights) == 1:
         print("🧠 Nerdy stats: No unusual findings this week.")
-        return
+        return None
 
     raw = "\n".join(insights)
     item = NewsItem(
@@ -259,9 +278,30 @@ async def nerdy_stats_job():
         published=datetime.utcnow(),
         raw_text=raw
     )
-    draft = await process_item(item)
-    print("🧠 Nerdy stats draft created.")
-    return draft # -- return the created draft (or None if no draft was created)
+    event_tag = "STAT_INSIGHT"
+    mode = get_mode_for_tag(event_tag)
+
+    system_prompt, user_prompt = build_prompt(item, event_tag, mode)
+    try:
+        variants = generate_tweet(system_prompt, user_prompt, n=3)
+    except Exception as e:
+        print(f"LLM failed for nerdy stats: {e}")
+        return None
+
+    with SessionLocal() as session:
+        draft = Draft(
+            event_hash=item.title,
+            content_type="stats",
+            persona=mode,
+            status="pending",
+            text_variants=variants,
+            selected_variant=None,
+        )
+        session.add(draft)
+        session.commit()
+        session.refresh(draft)
+        print(f"🧠 Nerdy stats draft created (ID {draft.id}).")
+        return draft
 
 def job():
     print("\n⏰ Running scheduled job...")
