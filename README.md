@@ -7,7 +7,7 @@
 ## ✨ Features
 
 1. **Real‑time news ingestion** (RSS, Reddit, Google News, API‑Football) - 100% free
-      - **Fast transfer news lane** – dedicated high‑frequency polling (every 10 minutes) of six fast‑updating RSS feeds for near‑real‑time transfer gossip
+      - **Fast transfer news lane** – dedicated high‑frequency polling (every 15 minutes) of six fast‑updating RSS feeds for near‑real‑time transfer gossip
       - **Post‑match & half‑time stat packs** – possession, xG, shots, passes automatically generated for every finished match
       - **Live in‑game stat snapshots** – triggered by the first goal of each half, showing key match stats in real time
       - **Weekly leaderboards** – top scorers & assists for the World Cup and any future league (via football‑data.org, free tier)
@@ -32,11 +32,11 @@
 
 ## 🧠 How It Works
 
-1. **News Fetchers** pull headlines from BBC, Sky Sports, ESPN, The Guardian, Daily Mail, Reddit, Google News, and live match data from API‑Football. A dedicated fast lane polls six transfer‑focused RSS feeds every 10 minutes. Weekly leaderboard data is sourced from football‑data.org.
+1. **News Fetchers** pull headlines from BBC, Sky Sports, ESPN, The Guardian, Daily Mail, Reddit, Google News, and live match data from API‑Football. A dedicated fast lane polls six transfer‑focused RSS feeds every 15 minutes. Weekly leaderboard data is sourced from football‑data.org.
 2. **Event Classifier** tags each story (goal, transfer, stats, debate, meme, etc.) using keyword rules.
 3. **Deduplication Engine** ensures the same story doesn’t generate repeated drafts within 24 hours.
 4. **Prompt Builder** combines your account’s persona, the selected mode (pundit/fan/analyst), active style rules, and your top‑performing tweets as few‑shot examples.
-5. **LLM Client** (Groq, free tier) generates tweet drafts.
+5. **LLM Client** (Groq with Mistral fallback) generates tweet drafts.
 6. **Telegram Bot** shows pending drafts in a queue with inline “Copy” buttons, optional `/postx` publishing, and instant live‑event drafts.
 7. **Analytics Engine** runs weekly, identifies patterns in your engagement data, and suggests natural‑language rules you can approve or reject.
 8. **Stats Engine** – after every full‑time whistle, match statistics are stored in the database. A weekly job analyses the accumulated data and creates a ‘Nerdy Stats of the Week’ draft highlighting unusual patterns.
@@ -68,7 +68,7 @@ footydraft/
 │   │   └── dedup.py         # Content‑hash deduplication
 │   ├── generation/
 │   │   ├── prompt_builder.py
-│   │   ├── llm_client.py    # Groq (primary), DeepSeek (fallback)
+│   │   ├── llm_client.py    # Groq (primary), Mistral (fallback)
 │   │   └── queue_manager.py # Draft creation & daily caps
 │   ├── publishing/          # Optional Xquik posting
 │   │   ├── __init__.py
@@ -146,24 +146,31 @@ python -m bot.main
 ```
 
 ### 4. Open Telegram & try commands
-- `/start` – welcome message with full command list
+- `/start` – welcome message and command list
 - `/queue` – view pending drafts (all, normal, or live) with Copy buttons & pagination
 - `/queue normal` – only normal pending drafts
 - `/queue live` – only live-match drafts
-- `/drafts` – browse all drafts (`all`, `pending`, `held`, `posted`) with pagination
+- `/drafts` – browse all drafts (`all`, `pending`, `held`, `posted`) with pagination and copy buttons
+- `/drafts pending` – only pending normal drafts
+- `/drafts held` – only held drafts
+- `drafts posted` – only posted drafts
+- `/leaderboard` – fetch latest top scorers & assists leaderboard
+- `/nerdystats` – generate nerdy stats of the week draft
 - `/hold <draft_id>` – quarantine a pending draft
 - `/release <draft_id>` – return a held draft to the queue
 - `/posted <draft_id>` – mark a draft as manually posted & link a tweet
 - `/postx <draft_id> [variant]` – post an approved draft via Xquik (requires `XQUIK_POSTING_ENABLED=1`)
-- `/metrics <tweet_ref> <likes> <retweets> <replies> <impressions>` – enter engagement
-- `/stats` – top & bottom tweets by likes (default), impressions, or list all posted tweets
-- `/tweets` – list all posted tweets with refs
+- `/metrics <tweet_ref> <likes> <retweets> <replies> <impressions>` – enter engagement numbers
+- `/stats` – top & bottom tweets by likes (default)
 - `/impressions` – top & bottom tweets by impressions
+- `/tweets` – list all posted tweets with refs
 - `/rules` – manage style rules (accept/reject auto‑suggestions)
 - `/addrule <text>` – add a manual style rule
-- `/source_status` – health of news sources
+- `/source_status` – check health of news sources
 - `/livecheck` – force check for live matches
 - `/clearqueue` – delete all pending drafts (or only `normal` / `live`)
+- `/clearqueue normal` – delete only normal pending drafts
+- `/clearqueue live` – delete only live pending drafts
 - `/uptime` – bot uptime and start time (WAT)
 - `/restore` – gated database restore from Dropbox backups
 - `/restart` – Restart the bot (two-step confirmation)
@@ -267,7 +274,8 @@ All important settings are in `config/settings.py` and can be overridden with en
 |----------|---------|-------------|
 | `OPENAI_API_KEY` | – | API key (Groq or any OpenAI‑compatible provider) |
 | `TELEGRAM_BOT_TOKEN` | – | Telegram bot token |
-| `GROQ_API_KEY` | – | Groq API key (fallback) |
+| `GROQ_API_KEY` | – | Groq API key (primary) |
+| `MISTRAL_API_KEY` | – | Mistral API key (fallback when Groq is rate‑limited) |
 | `API_FOOTBALL_KEY` | – | API‑Football key |
 | `FOOTBALL_DATA_KEY` | – | API key for football‑data.org – required for weekly leaderboards |
 | `DATABASE_URL` | `sqlite:///data/agent.db` | DB connection string |
