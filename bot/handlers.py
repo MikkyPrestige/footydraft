@@ -274,8 +274,14 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually trigger the leaderboard draft and display it.  Errors are caught to prevent bot crash."""
     await update.message.reply_text("📊 Fetching latest leaderboard…")
-    draft = await fetch_and_draft_leaderboards()
+    try:
+        draft = await fetch_and_draft_leaderboards()
+    except Exception as e:
+        await update.message.reply_text(f"❌ Leaderboard error: {e}")
+        return
+
     if draft and draft.text_variants:
         variants = draft.text_variants
         header = f"📰 Draft #{draft.id} - [{draft.persona}] Leaderboard"
@@ -291,8 +297,14 @@ async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❌ Leaderboard draft could not be created")
 
 async def nerdystats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually trigger the nerdy stats draft and display it.  Errors are caught to prevent bot crash."""
     await update.message.reply_text("🧠 Crunching nerdy stats…")
-    draft = await nerdy_stats_job()
+    try:
+        draft = await nerdy_stats_job()
+    except Exception as e:
+        await update.message.reply_text(f"❌ Nerdy stats error: {e}")
+        return
+
     if draft and draft.text_variants:
         variants = draft.text_variants
         header = f"📰 Draft #{draft.id} - [{draft.persona}] Nerdy Stats"
