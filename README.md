@@ -99,6 +99,10 @@ footydraft/
 │       ├── Rule_Manager.py
 │       └── Source_Health.py
 ├── data/                    # SQLite database (auto‑created)
+├── scripts/                 # Diagnostic & utility scripts
+│   ├── diagnostic_tags.py   # Check event classifier tag distribution
+│   ├── diagnostic.py        # Check API‑Football live data & classification
+│   └── direct_api_check.py  # Compare live=all vs date endpoints
 ├── tests/                   # Unit & integration tests
 ├── .env.example             # Environment template
 ├── Dockerfile               # Containerised deployment
