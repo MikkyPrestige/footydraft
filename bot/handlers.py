@@ -580,7 +580,7 @@ async def release_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"📤 Draft #{draft_id} released back to queue.")
 
 async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show drafts with optional filter and pagination."""
+    """Show drafts with optional filter and pagination – each draft gets Copy buttons."""
     filter_arg = context.args[0].lower() if context.args else "all"
     page = int(context.args[1]) if len(context.args) > 1 else 0
 
@@ -603,19 +603,30 @@ async def drafts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"No drafts found for filter '{filter_arg}'.")
             return
 
-        pages = (total - 1) // 10 + 1
-        msg = f"📋 Drafts ({filter_arg}) – page {page+1}/{pages}\n\n"
+        # Send each draft as a separate message with Copy buttons
         for d in drafts:
-            preview = d.text_variants[0][:60] + "..." if d.text_variants[0] and len(d.text_variants[0]) > 60 else d.text_variants[0]
-            msg += f"#{d.id} [{d.persona}] {preview}\n"
+            variants = d.text_variants
+            content_label = "📡 LIVE" if d.content_type == "live" else "📄 Normal"
+            header = f"📰 Draft #{d.id} - [{d.persona}] {content_label} ({d.status})"
+            msg = header + "\n\n" + "\n\n".join(
+                f"**V{i+1}:** {v}" for i, v in enumerate(variants)
+            )
+            await update.message.reply_text(
+                msg,
+                reply_markup=copy_buttons(d.id, variants),
+                parse_mode="Markdown"
+            )
 
-        keyboard = None
+        # Pagination button at the end
+        pages = (total - 1) // 10 + 1
         if page + 1 < pages:
             keyboard = InlineKeyboardMarkup([[
                 InlineKeyboardButton("Older ➡️", callback_data=f"drafts_{filter_arg}_{page+1}")
             ]])
-
-        await update.message.reply_text(msg, reply_markup=keyboard)
+            await update.message.reply_text(
+                f"📋 Page {page+1}/{pages} – tap Older for more",
+                reply_markup=keyboard
+            )
 
 async def uptime_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show bot start time and elapsed uptime."""
