@@ -180,8 +180,9 @@ async def fetch_and_draft_leaderboards():
             published=datetime.utcnow(),
             raw_text=raw
         )
-        await process_item(item)
+        draft = await process_item(item)
         print(f"📊 {comp_name} leaderboard draft created.")
+        return draft  # <-- return the last created draft (or the only one)
 
 async def nerdy_stats_job():
     """Analyse stored match stats and create a draft with nerdy insights."""
@@ -258,8 +259,9 @@ async def nerdy_stats_job():
         published=datetime.utcnow(),
         raw_text=raw
     )
-    await process_item(item)
+    draft = await process_item(item)
     print("🧠 Nerdy stats draft created.")
+    return draft # -- return the created draft (or None if no draft was created)
 
 def job():
     print("\n⏰ Running scheduled job...")

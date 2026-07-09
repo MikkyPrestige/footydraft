@@ -274,53 +274,38 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Manually trigger the leaderboard draft generation and display it."""
     await update.message.reply_text("📊 Fetching latest leaderboard…")
-    # Await the job directly so we can capture the result
-    await fetch_and_draft_leaderboards()
-    # Fetch the most recent one and display it
-    with SessionLocal() as session:
-        draft = session.query(Draft).filter(
-            Draft.title.startswith("🏆")
-        ).order_by(Draft.created_at.desc()).first()
-        if draft:
-            variants = draft.text_variants
-            content_label = "📄 Leaderboard"
-            header = f"📰 Draft #{draft.id} - [{draft.persona}] {content_label}"
-            msg = header + "\n\n" + "\n\n".join(
-                f"**V{i+1}:** {v}" for i, v in enumerate(variants)
-            )
-            await update.message.reply_text(
-                msg,
-                reply_markup=copy_buttons(draft.id, variants),
-                parse_mode="Markdown"
-            )
-        else:
-            await update.message.reply_text("❌ Leaderboard draft could not be created or found.")
+    draft = await fetch_and_draft_leaderboards()
+    if draft and draft.text_variants:
+        variants = draft.text_variants
+        header = f"📰 Draft #{draft.id} - [{draft.persona}] Leaderboard"
+        msg = header + "\n\n" + "\n\n".join(
+            f"**V{i+1}:** {v}" for i, v in enumerate(variants)
+        )
+        await update.message.reply_text(
+            msg,
+            reply_markup=copy_buttons(draft.id, variants),
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text("❌ Leaderboard draft could not be created")
 
 async def nerdystats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Manually trigger the nerdy stats draft and display it."""
     await update.message.reply_text("🧠 Crunching nerdy stats…")
-    await nerdy_stats_job()
-    # Fetch the most recent nerdy stats draft and display it
-    with SessionLocal() as session:
-        draft = session.query(Draft).filter(
-            Draft.title.startswith("🧠")
-        ).order_by(Draft.created_at.desc()).first()
-        if draft:
-            variants = draft.text_variants
-            content_label = "📄 Nerdy Stats"
-            header = f"📰 Draft #{draft.id} - [{draft.persona}] {content_label}"
-            msg = header + "\n\n" + "\n\n".join(
-                f"**V{i+1}:** {v}" for i, v in enumerate(variants)
-            )
-            await update.message.reply_text(
-                msg,
-                reply_markup=copy_buttons(draft.id, variants),
-                parse_mode="Markdown"
-            )
-        else:
-            await update.message.reply_text("❌ Nerdy stats draft could not be created or found.")
+    draft = await nerdy_stats_job()
+    if draft and draft.text_variants:
+        variants = draft.text_variants
+        header = f"📰 Draft #{draft.id} - [{draft.persona}] Nerdy Stats"
+        msg = header + "\n\n" + "\n\n".join(
+            f"**V{i+1}:** {v}" for i, v in enumerate(variants)
+        )
+        await update.message.reply_text(
+            msg,
+            reply_markup=copy_buttons(draft.id, variants),
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text("❌ Nerdy stats draft could not be created")
 
 async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show active rules and suggested rules (auto) with Accept/Reject buttons."""
