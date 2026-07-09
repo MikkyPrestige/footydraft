@@ -303,6 +303,17 @@ async def nerdy_stats_job() -> Draft | None:
         print(f"🧠 Nerdy stats draft created (ID {draft.id}).")
         return draft
 
+def _safe_schedule(fn):
+    """Run a job (async or sync) and log any exception, but never crash the scheduler."""
+    try:
+        import inspect
+        if inspect.iscoroutinefunction(fn):
+            asyncio.run(fn())
+        else:
+            fn()
+    except Exception as e:
+        print(f"Scheduled job error: {e}")
+
 def job():
     print("\n⏰ Running scheduled job...")
     try:
@@ -322,12 +333,12 @@ def analytics_job():
 
 def main():
     schedule.every(30).minutes.do(job)
-    schedule.every(15).minutes.do(lambda: asyncio.run(fetch_fast_feeds()))
-    schedule.every().monday.at("02:00").do(lambda: asyncio.run(fetch_and_draft_leaderboards()))
-    schedule.every().thursday.at("02:00").do(lambda: asyncio.run(fetch_and_draft_leaderboards()))
-    schedule.every().tuesday.at("03:00").do(lambda: asyncio.run(nerdy_stats_job()))
-    schedule.every().tuesday.at("02:00").do(analytics_job)
-    schedule.every().day.at("03:00").do(daily_backup_job)
+    schedule.every(15).minutes.do(lambda: _safe_schedule(fetch_fast_feeds))
+    schedule.every().monday.at("02:00").do(lambda: _safe_schedule(fetch_and_draft_leaderboards))
+    schedule.every().thursday.at("02:00").do(lambda: _safe_schedule(fetch_and_draft_leaderboards))
+    schedule.every().tuesday.at("03:00").do(lambda: _safe_schedule(nerdy_stats_job))
+    schedule.every().tuesday.at("02:00").do(lambda: _safe_schedule(analytics_job))
+    schedule.every().day.at("03:00").do(lambda: _safe_schedule(daily_backup_job))
     print("Scheduler started — news every 30 min, analytics on Monday 02:00.")
     job()
     while True:
