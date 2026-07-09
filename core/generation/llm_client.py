@@ -50,6 +50,7 @@ def generate_tweet(system_prompt: str, user_prompt: str, n: int = 1) -> list[str
                         temperature=0.9,
                     )
                     variants.append(response.choices[0].message.content.strip())
+                    generated = True
                     break
                 except Exception as fallback_error:
                     print(f"Mistral fallback also failed: {fallback_error}")
